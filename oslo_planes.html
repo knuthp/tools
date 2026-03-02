@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Oslo Air Traffic Live</title>
+  <script src="https://unpkg.com/deck.gl@8.9.35/dist.min.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0e14;
+      --panel: #111720;
+      --border: #1e2d3d;
+      --accent: #00e5ff;
+      --text: #c8d8e8;
+      --muted: #4a6070;
+    }
+
+    html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overflow: hidden; }
+
+    #map { position: absolute; inset: 0; }
+
+    /* Header */
+    #header {
+      position: absolute;
+      top: 20px; left: 20px;
+      z-index: 10;
+      background: rgba(10,14,20,0.85);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      padding: 14px 20px;
+      backdrop-filter: blur(12px);
+    }
+    #header h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    #header p {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* Tooltip */
+    #tooltip {
+      position: absolute;
+      z-index: 20;
+      pointer-events: none;
+      background: rgba(10,14,20,0.95);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
+      padding: 10px 14px;
+      font-size: 12px;
+      max-width: 300px;
+      display: none;
+      backdrop-filter: blur(8px);
+    }
+    #tooltip .t-name {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      margin-bottom: 6px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    #tooltip .t-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 3px;
+    }
+    #tooltip .t-key { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+    #tooltip .t-val { font-family: 'Space Mono', monospace; font-size: 11px; }
+
+    /* Refresh pulse */
+    #refresh-indicator {
+      position: absolute;
+      top: 20px; right: 20px;
+      width: 10px; height: 10px;
+      background: var(--accent);
+      border-radius: 50%;
+      z-index: 10;
+      opacity: 0;
+    }
+    .pulse {
+      animation: pulse-animation 0.5s ease-out;
+    }
+    @keyframes pulse-animation {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(3); opacity: 0; }
+    }
+
+    /* Status bar */
+    #status {
+      position: absolute;
+      bottom: 20px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      background: rgba(10,14,20,0.7);
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      letter-spacing: 0.08em;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="refresh-indicator"></div>
+
+<div id="header">
+  <h1>Oslo Air Traffic Live</h1>
+  <p id="last-update">Connecting...</p>
+</div>
+
+<div id="tooltip"></div>
+<div id="status">Initializing...</div>
+
+<script>
+const OSLO_LAT = 59.9139;
+const OSLO_LON = 10.7522;
+const RADIUS_NM = 100;
+const API_URL = `https://api.adsb.lol/v2/lat/${OSLO_LAT}/lon/${OSLO_LON}/dist/${RADIUS_NM}`;
+const REFRESH_MS = 6000;
+
+let deckInstance = null;
+let aircraft = [];
+
+// --- Map init using MapLibre + deck.gl overlay ---
+const map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    sources: {
+      'carto-dark': {
+        type: 'raster',
+        tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'],
+        tileSize: 256,
+        attribution: '© OpenStreetMap © CARTO'
+      }
+    },
+    layers: [{ id: 'carto-dark', type: 'raster', source: 'carto-dark' }]
+  },
+  center: [OSLO_LON, OSLO_LAT],
+  zoom: 7,
+  antialias: true
+});
+
+map.on('load', () => {
+  initDeck();
+  fetchAndUpdate();
+  setInterval(fetchAndUpdate, REFRESH_MS);
+});
+
+async function fetchAndUpdate() {
+  setStatus('Fetching aircraft data...');
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    // API returns aircraft in 'ac' array
+    aircraft = (data.ac || []).filter(a => a.lat != null && a.lon != null);
+
+    renderLayers();
+    triggerPulse();
+
+    const now = new Date();
+    document.getElementById('last-update').textContent =
+      'Updated ' + now.toLocaleTimeString();
+    setStatus(`${aircraft.length} aircraft tracked within ${RADIUS_NM}nm of Oslo`);
+  } catch (e) {
+    setStatus('Error: ' + e.message);
+    console.error(e);
+  }
+}
+
+function renderLayers() {
+  const iconLayer = new deck.IconLayer({
+    id: 'aircraft-layer',
+    data: aircraft,
+    pickable: true,
+    getPosition: d => [d.lon, d.lat],
+    getIcon: d => ({
+      url: planeIconUrl(),
+      width: 512,
+      height: 512,
+      mask: true
+    }),
+    sizeUnits: 'pixels',
+    sizeScale: 1,
+    getSize: d => 24,
+    getAngle: d => -(d.track || 0),
+    getColor: d => [0, 229, 255],
+    onHover: handleHover
+  });
+
+  deckInstance.setProps({ layers: [iconLayer] });
+}
+
+let planeUrl = null;
+function planeIconUrl() {
+  if (planeUrl) return planeUrl;
+  // North-pointing plane SVG
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><path fill="white" d="M448 336v-40L288 192V79.2c0-22.1-17.9-40-40-40s-40 17.9-40 40V192L48 296v40l160-48v113.6l-48 31.2V472l88-24 88 24v-39.2l-48-31.2V288l160 48z"/></svg>`;
+  planeUrl = 'data:image/svg+xml;base64,' + btoa(svg);
+  return planeUrl;
+}
+
+function handleHover({ object, x, y }) {
+  const tip = document.getElementById('tooltip');
+  if (!object) {
+    tip.style.display = 'none';
+    return;
+  }
+
+  const d = object;
+  const lastSeen = d.seen ? `${d.seen}s ago` : 'just now';
+
+  tip.style.display = 'block';
+  tip.style.left = (x + 12) + 'px';
+  tip.style.top = (y + 12) + 'px';
+
+  let html = `<div class="t-name">${d.flight ? d.flight.trim() : 'Unknown Flight'} (${d.hex.toUpperCase()})</div>`;
+
+  const fields = [
+    ['Registration', d.r],
+    ['Type', d.t],
+    ['Altitude', d.alt_baro ? `${d.alt_baro} ft` : (d.alt_geom ? `${d.alt_geom} ft (geom)` : 'N/A')],
+    ['Ground Speed', d.gs ? `${d.gs} kts` : 'N/A'],
+    ['IAS', d.ias ? `${d.ias} kts` : null],
+    ['TAS', d.tas ? `${d.tas} kts` : null],
+    ['Mach', d.mach],
+    ['Track', d.track ? `${d.track}°` : 'N/A'],
+    ['Heading', d.mag_heading ? `${d.mag_heading}° (mag)` : (d.true_heading ? `${d.true_heading}° (true)` : null)],
+    ['Vertical Rate', d.baro_rate ? `${d.baro_rate} fpm` : null],
+    ['Squawk', d.squawk],
+    ['Category', d.category],
+    ['Distance', d.dst ? `${d.dst.toFixed(1)} nm` : null],
+    ['Last seen', lastSeen]
+  ];
+
+  fields.forEach(([key, val]) => {
+    if (val !== undefined && val !== null && val !== '') {
+      html += `<div class="t-row"><span class="t-key">${key}</span><span class="t-val">${val}</span></div>`;
+    }
+  });
+
+  tip.innerHTML = html;
+}
+
+function initDeck() {
+  deckInstance = new deck.MapboxOverlay({
+    interleaved: false,
+    layers: [],
+    getTooltip: null
+  });
+  map.addControl(deckInstance);
+}
+
+function triggerPulse() {
+  const el = document.getElementById('refresh-indicator');
+  el.classList.remove('pulse');
+  void el.offsetWidth;
+  el.classList.add('pulse');
+}
+
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+</script>
+</body>
+</html>

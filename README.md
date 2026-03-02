@@ -10,3 +10,4 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Sporet vehicles M365 Copilot](./vehicles_m365_copilot.html) Show cross country track prepping vehicles. Built with M365 Copilot
 * [Sporet vehicles Claude](./vehicles_claude.html) Show cross country track prepping vehicles. Built with Claude Sonnet
 * [Sporet vehicles Gemini](./vehicles_gemini.html) Show cross country track prepping vehicles. Built with Google Gemini
+* [Oslo Air Traffic](./oslo_planes.html) Live aircraft tracking around Oslo using adsb.lol API.
