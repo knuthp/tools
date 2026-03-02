@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sporet Vehicle Tracker</title>
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.css" rel="stylesheet" />
+
+    <style style="text-css">
+        body { margin: 0; padding: 0; overflow: hidden; background: #111; }
+        #map { width: 100vw; height: 100vh; }
+        #ui {
+            position: absolute; top: 20px; left: 20px; z-index: 1;
+            background: rgba(0,0,0,0.7); color: white; padding: 15px;
+            font-family: sans-serif; border-radius: 8px; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h2 style="margin:0 0 10px 0">Sporet Live Map</h2>
+        <div id="status">Fetching vehicles...</div>
+    </div>
+    <div id="map"></div>
+
+    <script type="text/javascript">
+        const { DeckGL, IconLayer, MapView } = deck;
+
+        const API_URL = 'https://maps.sporet.no/arcgis/rest/services/Proxy/Sporet/FeatureServer/2/query?f=json&outSr=4326&where=1=1&outFields=*';
+
+        // Initial map state (Norway area)
+        const initialViewState = {
+            longitude: 17.78,
+            latitude: 68.78,
+            zoom: 5,
+            pitch: 0,
+            bearing: 0
+        };
+
+        const deckgl = new DeckGL({
+            container: 'map',
+            mapStyle: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+            initialViewState: initialViewState,
+            controller: true,
+            layers: []
+        });
+
+        async function updateVehicles() {
+            try {
+                const response = await fetch(API_URL);
+                const json = await response.json();
+                const features = json.features || [];
+
+                const layer = new IconLayer({
+                    id: 'vehicle-layer',
+                    data: features,
+                    pickable: true,
+                    // Map ArcGIS geometry to [longitude, latitude]
+                    getPosition: d => [d.geometry.x, d.geometry.y],
+                    // Simple circle icon using a data URL or a public icon
+                    getIcon: d => ({
+                        url: 'https://img.icons8.com/ios-filled/50/ffffff/marker.png',
+                        width: 128,
+                        height: 128,
+                        anchorY: 128
+                    }),
+                    getSize: d => 30,
+                    getColor: d => d.attributes.speed > 0 ? [0, 255, 100] : [255, 100, 0],
+                    updateTriggers: {
+                        getPosition: [Date.now()] // Force update on new data
+                    }
+                });
+
+                deckgl.setProps({ layers: [layer] });
+                document.getElementById('status').innerText = `Updated: ${new Date().toLocaleTimeString()} (${features.length} vehicles)`;
+            } catch (error) {
+                console.error('Fetch error:', error);
+                document.getElementById('status').innerText = 'Error loading data (CORS?)';
+            }
+        }
+
+        // Tooltip configuration
+        deckgl.setProps({
+            getTooltip: ({object}) => object && {
+                html: `<b>${object.attributes.name}</b><br/>Speed: ${object.attributes.speed.toFixed(1)} km/h<br/>Last seen: ${new Date(object.attributes.lastseen).toLocaleString()}`,
+                style: { backgroundColor: '#333', color: '#fff', fontSize: '12px' }
+            }
+        });
+
+        // Poll every 10 seconds
+        updateVehicles();
+        setInterval(updateVehicles, 10000);
+
+    </script>
+</body>
+</html>

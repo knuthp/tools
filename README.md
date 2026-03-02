@@ -1,0 +1,12 @@
+# tools
+Mischellaneous HTML+JavaScript or python script tools built mostly with the help of LLMs.
+
+This collection is an experiment in prompt-driven development with very low stakes.
+
+Inspired by Simon Willison <https://github.com/simonw/tools>
+
+
+## Geographic information
+* [Sporet vehicles M365 Copilot](./vehicles_m365_copilot.html) Show cross country track prepping vehicles. Built with M365 Copilot
+* [Sporet vehicles Claude](./vehicles_claude.html) Show cross country track prepping vehicles. Built with Claude Sonnet
+* [Sporet vehicles Gemini](./vehicles_gemini.html) Show cross country track prepping vehicles. Built with Google Gemini

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Sporet Vehicles – Deck.gl + MapLibre + Kartverket/OpenTopoMap</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- MapLibre GL JS -->
+  <link href="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@3.6.1/dist/maplibre-gl.js"></script>
+
+  <!-- Deck.gl UMD -->
+  <script src="https://unpkg.com/deck.gl@8.9.36/dist.min.js"></script>
+
+  <style>
+    html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
+
+    /* Controls */
+    .hud {
+      position: absolute; top: 10px; left: 10px; z-index: 3;
+      background: rgba(255,255,255,0.92); padding: 8px 12px; border-radius: 6px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: 13px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      max-width: 420px;
+    }
+    .hud label { display: inline-block; margin-right: 8px; }
+    .hud input { width: 72px; }
+    .hud button { margin-left: 6px; }
+    .hud .row { margin-top: 6px; }
+
+    #basemapSwitcher {
+      position: absolute; right: 10px; top: 10px; z-index: 3;
+      background: rgba(255,255,255,.92); padding: 6px 10px; border-radius: 6px;
+      font: 13px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    #basemapSwitcher select { font-size: 13px; }
+
+    .legend {
+      position: absolute; right: 10px; top: 60px; z-index: 3;
+      background: rgba(255,255,255,.92); padding: 8px 10px; border-radius: 6px;
+      font: 12px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15); min-width: 170px;
+    }
+    .legend h4 { margin: 0 0 6px 0; font-size: 12px; }
+    .legend .item { display: flex; align-items: center; margin: 4px 0; }
+    .legend .swatch { width: 14px; height: 14px; border-radius: 3px; margin-right: 8px; border: 1px solid rgba(0,0,0,.2); }
+    .legend .swatch.red { background: rgba(220,68,55,1); }
+    .legend .swatch.orange { background: rgba(243,156,18,1); }
+    .legend .swatch.blue { background: rgba(46,134,222,1); }
+    .legend .swatch.gray { background: rgba(150,150,150,1); }
+
+    .map-attrib {
+      position: absolute; right: 0; bottom: 0; z-index: 3;
+      background: rgba(255,255,255,.85); padding: 4px 6px; border-top-left-radius: 6px;
+      font: 11px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #333;
+    }
+    .map-attrib a { color: #007aff; text-decoration: none; }
+    .map-attrib a:hover { text-decoration: underline; }
+
+    a { color: #007aff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Controls: refresh, where, pause -->
+  <div class="hud">
+    <div class="row">
+      <label>Refresh (s):
+        <input id="refreshSec" type="number" min="2" step="1" value="10" />
+      </label>
+      <button id="apply">Apply</button>
+      <button id="pause">Pause</button>
+      <span id="status" style="margin-left:10px;color:#555;">Ready</span>
+    </div>
+    <div class="row">
+      <label>Where:
+        <input id="where" type="text" size="52" value="1=1" title="ArcGIS SQL where clause"/>
+      </label>
+    </div>
+  </div>
+
+  <!-- Basemap switcher -->
+  <div id="basemapSwitcher">
+    <label for="basemapSel">Basemap:</label>
+    <select id="basemapSel">
+      <option value="opentopo">OpenTopoMap (OSM topo)</option>
+      <option value="osm">OSM Standard</option>
+      <option value="kv_topo" selected>Kartverket – Topo (farge)</option>
+      <option value="kv_graa">Kartverket – Gråtone</option>
+      <option value="kv_tur">Kartverket – Turkart (raster)</option>
+      <option value="kv_sjo">Kartverket – Sjøkart (raster)</option>
+    </select>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <h4>Fart (fra tjenesten)</h4>
+    <div class="item"><span class="swatch gray"></span>Stale &gt; 2h siden</div>
+    <div class="item"><span class="swatch red"></span>0–0.2 (stoppet)</div>
+    <div class="item"><span class="swatch orange"></span>0.2–5 (sakte)</div>
+    <div class="item"><span class="swatch blue"></span>&gt; 5 (raskere)</div>
+    <div style="margin-top:4px;color:#666;">Ikonstørrelse øker med hastighet</div>
+  </div>
+
+  <!-- Attribution footer -->
+  <div class="map-attrib" id="attrib">
+    © <a href="https://www.kartverket.no/">Kartverket</a> · © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors
+  </div>
+
+  <script>
+    // ---------- CONFIG ----------
+    const SERVICE_URL = 'https://maps.sporet.no/arcgis/rest/services/Proxy/Sporet/FeatureServer/2/query';
+    const OUT_FIELDS = 'vehicleid,name,renderer_value,lastseen,speed,course,is_visible,orgid';
+    const PAGE_SIZE = 2000;
+
+    // ---------- BASEMAPS ----------
+    const KV_BASE = 'https://cache.kartverket.no/v1/wmts/1.0.0';
+    const basemaps = {
+      opentopo: {
+        type:'raster',
+        tiles: [
+          'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',
+          'https://b.tile.opentopomap.org/{z}/{x}/{y}.png',
+          'https://c.tile.opentopomap.org/{z}/{x}/{y}.png'
+        ],
+        tileSize: 256,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://opentopomap.org">OpenTopoMap</a>'
+      },
+      osm: {
+        type:'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      },
+      kv_topo: {
+        type:'raster',
+        tiles: [`${KV_BASE}/topo/default/webmercator/{z}/{y}/{x}.png`],
+        tileSize: 256,
+        attribution: '© <a href="https://www.kartverket.no/">Kartverket</a>'
+      },
+      kv_graa: {
+        type:'raster',
+        tiles: [`${KV_BASE}/topograatone/default/webmercator/{z}/{y}/{x}.png`],
+        tileSize: 256,
+        attribution: '© <a href="https://www.kartverket.no/">Kartverket</a>'
+      },
+      kv_tur: {
+        type:'raster',
+        tiles: [`${KV_BASE}/toporaster/default/webmercator/{z}/{y}/{x}.png`],
+        tileSize: 256,
+        attribution: '© <a href="https://www.kartverket.no/">Kartverket</a>'
+      },
+      kv_sjo: {
+        type:'raster',
+        tiles: [`${KV_BASE}/sjokartraster/default/webmercator/{z}/{y}/{x}.png`],
+        tileSize: 256,
+        attribution: '© <a href="https://www.kartverket.no/">Kartverket</a>'
+      }
+    };
+
+    // ---------- MAP ----------
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: {
+        version: 8,
+        sources: { base: basemaps['kv_topo'] },
+        layers: [{ id: 'base', type: 'raster', source: 'base' }]
+      },
+      center: [10.75, 59.91], // Oslo-ish
+      zoom: 5
+    });
+
+    // Deck overlay
+    const overlay = new deck.MapboxOverlay({ interleaved: true, layers: [] });
+    map.addControl(overlay);
+
+    // Basemap switching
+    const sel = document.getElementById('basemapSel');
+    const attrib = document.getElementById('attrib');
+    function setBasemap(key) {
+      const src = basemaps[key];
+      if (map.getLayer('base')) map.removeLayer('base');
+      if (map.getSource('base')) map.removeSource('base');
+      map.addSource('base', src);
+      map.addLayer({ id: 'base', type: 'raster', source: 'base' });
+      attrib.innerHTML = src.attribution;
+    }
+    sel.addEventListener('change', (e) => setBasemap(e.target.value));
+
+    // ---------- VEHICLE LAYER ----------
+    // Minimal arrow icon (SVG) embedded as a data URL, pointing north
+    const arrowSvg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+        <polygon points="32,4 54,56 32,44 10,56" fill="#2E86DE" stroke="#104E8B" stroke-width="2"/>
+        <circle cx="32" cy="44" r="3" fill="#062C5B"/>
+      </svg>`;
+    const arrowUrl = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(arrowSvg);
+
+    let timer = null;
+    let isPaused = false;
+    let lastFit = false;
+
+    const refreshSecEl = document.getElementById('refreshSec');
+    const whereEl = document.getElementById('where');
+    const applyBtn = document.getElementById('apply');
+    const pauseBtn = document.getElementById('pause');
+    const statusEl = document.getElementById('status');
+
+    applyBtn.addEventListener('click', () => restartPolling());
+    pauseBtn.addEventListener('click', () => {
+      isPaused = !isPaused;
+      pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
+      if (!isPaused) { pollOnce(true); scheduleNext(); }
+      else if (timer) { clearTimeout(timer); timer = null; }
+    });
+
+    // Utils
+    function setStatus(msg, color='#555') { statusEl.textContent = msg; statusEl.style.color = color; }
+    function timeAgo(ms) {
+      if (!ms) return 'N/A';
+      const deltaSec = Math.max(0, (Date.now() - ms) / 1000);
+      const mins = Math.floor(deltaSec / 60);
+      const hours = Math.floor(mins / 60);
+      const days = Math.floor(hours / 24);
+      if (deltaSec < 60) return `${Math.floor(deltaSec)}s ago`;
+      if (mins < 60) return `${mins}m ago`;
+      if (hours < 24) return `${hours}h ${mins % 60}m ago`;
+      return `${days}d ${hours % 24}h ago`;
+    }
+
+    function buildQuery({ where = '1=1', offset = 0, count = PAGE_SIZE } = {}) {
+      const params = new URLSearchParams({
+        f: 'json',
+        outSr: '4326',
+        where,
+        outFields: OUT_FIELDS,
+        returnGeometry: 'true',
+        resultOffset: String(offset),
+        resultRecordCount: String(count),
+        __ts: String(Date.now())
+      });
+      return `${SERVICE_URL}?${params.toString()}`;
+    }
+
+    async function fetchAllFeatures(where) {
+      let all = [];
+      let offset = 0;
+      let keepGoing = true;
+      while (keepGoing) {
+        const url = buildQuery({ where, offset, count: PAGE_SIZE });
+        const res = await fetch(url, { mode: 'cors' });
+        if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+        const json = await res.json();
+        if (json.error) throw new Error(json.error.message || 'ArcGIS error');
+
+        const feats = json.features || [];
+        all = all.concat(feats);
+
+        // Continue if it's likely truncated
+        keepGoing = feats.length === PAGE_SIZE || json.exceededTransferLimit === true;
+        offset += feats.length;
+
+        if (feats.length === 0) break;
+      }
+      return all;
+    }
+
+    function normalize(features) {
+      return features
+        .filter(f => f && f.geometry && Number.isFinite(f.geometry.x) && Number.isFinite(f.geometry.y))
+        .map(f => {
+          const a = f.attributes || {};
+          const lon = f.geometry.x;
+          const lat = f.geometry.y;
+          return {
+            id: a.vehicleid ?? Math.random(),
+            name: a.name ?? '',
+            renderer_value: a.renderer_value ?? '',
+            lastseen: a.lastseen ?? null,
+            speed: Number.isFinite(a.speed) ? a.speed : null,
+            course: Number.isFinite(a.course) ? a.course : 0,
+            is_visible: a.is_visible,
+            orgid: a.orgid,
+            position: [lon, lat]
+          };
+        });
+    }
+
+    function colorFor(d) {
+      const stale = d.lastseen ? (Date.now() - d.lastseen) > 2 * 60 * 60 * 1000 : false;
+      if (stale) return [150,150,150,200];       // gray
+      const v = (d.speed ?? 0);
+      if (v <= 0.2) return [220,68,55,220];      // red
+      if (v <= 5)   return [243,156,18,220];     // orange
+      return [46,134,222,220];                   // blue
+    }
+
+    function sizeFor(d) {
+      const v = Math.max(0, d.speed ?? 0);
+      return 24 + Math.min(36, v * 3); // 24..60 px
+    }
+
+    function buildLayer(data) {
+      return new deck.IconLayer({
+        id: 'vehicles',
+        data,
+        pickable: true,
+        billboard: true,
+        sizeUnits: 'pixels',
+        getPosition: d => d.position,
+        getSize: d => sizeFor(d),
+        getColor: d => colorFor(d),
+        getAngle: d => (360 - (d.course || 0)) % 360, // rotate so 0°=north
+        getIcon: d => ({
+          url: arrowUrl,
+          width: 64, height: 64,
+          anchorX: 32, anchorY: 44
+        }),
+        parameters: { depthTest: false }
+      });
+    }
+
+    function fitToData(data) {
+      if (!data || data.length === 0) return;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const d of data) {
+        const [x, y] = d.position;
+        if (x < minX) minX = x; if (y < minY) minY = y;
+        if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+      }
+      if (isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY)) {
+        map.fitBounds([[minX - 0.1, minY - 0.1], [maxX + 0.1, maxY + 0.1]], { padding: 60, duration: 800 });
+      }
+    }
+
+    overlay.setProps({
+      getTooltip: ({object}) => {
+        if (!object) return null;
+        const lastSeenText = object.lastseen ? `${timeAgo(object.lastseen)} (${new Date(object.lastseen).toLocaleString()})` : 'N/A';
+        const sp = (object.speed ?? 0).toFixed(2);
+        const crs = (object.course ?? 0).toFixed(0);
+        return {
+          text:
+            `${object.name || '(unnamed)'}\n` +
+            `Speed: ${sp}\n` +
+            `Course: ${crs}°\n` +
+            `Last seen: ${lastSeenText}\n` +
+            `Vehicle ID: ${object.id}\n` +
+            (object.renderer_value ? `Type: ${object.renderer_value}\n` : '') +
+            (Number.isFinite(object.orgid) ? `OrgID: ${object.orgid}` : '')
+        };
+      }
+    });
+
+    async function pollOnce(isImmediate = false) {
+      try {
+        setStatus(isImmediate ? 'Refreshing…' : 'Polling…');
+        const where = whereEl.value.trim() || '1=1';
+        const feats = await fetchAllFeatures(where);
+        const data = normalize(feats);
+
+        if (!lastFit) { fitToData(data); lastFit = true; }
+
+        overlay.setProps({ layers: [buildLayer(data)] });
+        setStatus(`Vehicles: ${data.length} · ${new Date().toLocaleTimeString()}`, '#0a0');
+      } catch (err) {
+        console.error(err);
+        setStatus(err.message || 'Error', '#b00');
+      }
+    }
+
+    function scheduleNext() {
+      const sec = Math.max(2, parseInt(refreshSecEl.value, 10) || 10);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(async () => {
+        if (!isPaused) {
+          await pollOnce();
+          scheduleNext();
+        }
+      }, sec * 1000);
+    }
+
+    function restartPolling() {
+      lastFit = false;
+      if (timer) clearTimeout(timer);
+      pollOnce(true).then(scheduleNext);
+    }
+
+    map.on('load', () => {
+      // set initial attribution based on default basemap selection
+      document.getElementById('attrib').innerHTML = basemaps[document.getElementById('basemapSel').value].attribution;
+      restartPolling();
+    });
+  </script>
+</body>
+</html>
