@@ -1,0 +1,14 @@
+{
+  "name": "tools-collection",
+  "version": "1.0.0",
+  "description": "Mischellaneous HTML+JavaScript or python script tools",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "eslint": "^9.39.4",
+    "eslint-plugin-html": "^8.1.4",
+    "globals": "^17.4.0"
+  }
+}
