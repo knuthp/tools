@@ -1,6 +1,6 @@
-import os
 import pytest
 from playwright.sync_api import Page, expect
+
 
 @pytest.fixture(scope="module", autouse=True)
 def setup_server():
@@ -10,6 +10,7 @@ def setup_server():
     time.sleep(2)  # Give it a second to start
     yield
     process.terminate()
+
 
 def test_map_loads_and_fetches_data(page: Page):
     # Go to the local server
@@ -25,7 +26,8 @@ def test_map_loads_and_fetches_data(page: Page):
     # Wait for the network request to Entur API
     # The API might be slow or down, so we set a reasonable timeout
     try:
-        with page.expect_response("**/realtime/v1/rest/vm?datasetId=RUT", timeout=30000) as response_info:
+        url_pattern = "**/realtime/v1/rest/vm?datasetId=RUT"
+        with page.expect_response(url_pattern, timeout=30000) as response_info:
             response = response_info.value
             assert response.status == 200
             json_data = response.json()
