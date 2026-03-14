@@ -1,0 +1,17 @@
+[project]
+name = "tools-collection"
+version = "1.0.0"
+dependencies = [
+    "playwright",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["tools"]
