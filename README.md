@@ -12,4 +12,6 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Sporet vehicles Gemini](./vehicles_gemini.html) Show cross country track prepping vehicles. Built with Google Gemini
 * [Oslo Air Traffic](./oslo_planes.html) Live aircraft tracking around Oslo using adsb.lol API.
 * [Entur SIRI-Lite Real-Time Map](./entur_siri_lite.html) Real-time public transport vehicles in Norway using Entur API.
+
+## Games
 * [Thro' the Wall](./thro_the_wall.html) ZX Spectrum style breakout clone.
