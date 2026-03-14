@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Entur SIRI-Lite Real-Time Map</title>
+
+  https://unpkg.com/deck.gl@latest/dist.min.js</script>
+  https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.js</script>
+  https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.css
+
+  <style>
+    body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; }
+  </style>
+</head>
+
+<body>
+<div id="map"></div>
+
+<script>
+// 1. Initialize basemap
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://demotiles.maplibre.org/style.json',
+  center: [10.75, 59.91], // Oslo
+  zoom: 11
+});
+
+// Deck.gl overlay
+const deckgl = new deck.DeckGL({
+  map: map,
+  layers: []
+});
+
+// 2. Fetch SIRI-Lite VM
+async function fetchVM() {
+  try {
+    const resp = await fetch(
+      "https://api.entur.io/realtime/v1/rest/vm?datasetId=RUT",
+      { headers: { "ET-Client-Name": "example-siri-lite-map" } }
+    );
+
+    const json = await resp.json();
+
+    const vehicles = [];
+
+    if (json?.Siri?.ServiceDelivery?.VehicleMonitoringDelivery) {
+      for (const delivery of json.Siri.ServiceDelivery.VehicleMonitoringDelivery) {
+        for (const vm of delivery.VehicleActivity || []) {
+          const pos = vm?.MonitoredVehicleJourney?.VehicleLocation;
+          if (!pos) continue;
+
+          vehicles.push({
+            id: vm.MonitoredVehicleJourney?.VehicleRef || "unknown",
+            position: [pos.Longitude, pos.Latitude],
+            line: vm.MonitoredVehicleJourney?.LineRef
+          });
+        }
+      }
+    }
+
+    updateLayer(vehicles);
+
+  } catch (err) {
+    console.error("Failed updating VM:", err);
+  }
+}
+
+// 3. Update deck.gl layer
+function updateLayer(vehicles) {
+  deckgl.setProps({
+    layers: [
+      new deck.ScatterplotLayer({
+        id: 'vehicles',
+        data: vehicles,
+        getPosition: d => d.position,
+        getFillColor: [0, 150, 255],
+        getRadius: 40,
+        radiusMinPixels: 4,
+        pickable: true,
+        onHover: ({object, x, y}) => {
+          if (object) {
+            const tooltip = `${object.line || "?"} (${object.id})`;
+            const el = document.getElementById("tooltip");
+            el.style.left = x + "px";
+            el.style.top = y + "px";
+            el.innerHTML = tooltip;
+            el.style.display = "block";
+          } else {
+            document.getElementById("tooltip").style.display = "none";
+          }
+        }
+      })
+    ]
+  });
+}
+
+// 4. Update every 10 seconds
+fetchVM();
+setInterval(fetchVM, 10000);
+
+</script>
+
+<!-- Tooltip -->
+<div id="tooltip"
+     style="position:absolute;background:white;padding:4px;border:1px solid #ccc;display:none;font-size:12px;">
+</div>
+
+</body>
+</html>
