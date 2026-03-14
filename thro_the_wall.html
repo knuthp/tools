@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thro' the Wall - ZX Spectrum Clone</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        const COLORS = {
+            BLACK: [0, 0, 0],
+            BLUE: [0, 0, 215],
+            RED: [215, 0, 0],
+            MAGENTA: [215, 0, 215],
+            GREEN: [0, 215, 0],
+            CYAN: [0, 215, 215],
+            YELLOW: [215, 215, 0],
+            WHITE: [215, 215, 215],
+            BRIGHT_BLACK: [0, 0, 0],
+            BRIGHT_BLUE: [0, 0, 255],
+            BRIGHT_RED: [255, 0, 0],
+            BRIGHT_MAGENTA: [255, 0, 255],
+            BRIGHT_GREEN: [0, 255, 0],
+            BRIGHT_CYAN: [0, 255, 255],
+            BRIGHT_YELLOW: [255, 255, 0],
+            BRIGHT_WHITE: [255, 255, 255]
+        };
+
+        const V_WIDTH = 400; // Wider than original 256
+        const V_HEIGHT = 240;
+        const BORDER_SIZE = 32;
+
+        let gameState = 'LOADING';
+        let loadingTimer = 0;
+        let score = 0;
+        let lives = 3;
+
+        let paddle;
+        let ball;
+        let bricks = [];
+        let osc; // Oscillator for beeper sound
+
+        const BRICK_ROWS = 6;
+        const BRICK_COLS = 12;
+        const BRICK_WIDTH = V_WIDTH / BRICK_COLS;
+        const BRICK_HEIGHT = 12;
+
+        class Paddle {
+            constructor() {
+                this.w = 40;
+                this.h = 8;
+                this.x = width / 2 - this.w / 2;
+                this.y = height - BORDER_SIZE - 20;
+                this.speed = 5;
+            }
+
+            update() {
+                if (keyIsDown(LEFT_ARROW)) {
+                    this.x -= this.speed;
+                }
+                if (keyIsDown(RIGHT_ARROW)) {
+                    this.x += this.speed;
+                }
+                this.x = constrain(this.x, BORDER_SIZE, width - BORDER_SIZE - this.w);
+            }
+
+            draw() {
+                fill(COLORS.CYAN);
+                rect(this.x, this.y, this.w, this.h);
+            }
+        }
+
+        class Ball {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = width / 2;
+                this.y = height / 2;
+                this.size = 8;
+                this.vx = random([-3, 3]);
+                this.vy = 3;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wall collisions
+                if (this.x < BORDER_SIZE || this.x > width - BORDER_SIZE - this.size) {
+                    this.vx *= -1;
+                }
+                if (this.y < BORDER_SIZE) {
+                    this.vy *= -1;
+                }
+
+                // Paddle collision
+                if (this.y + this.size > paddle.y &&
+                    this.y < paddle.y + paddle.h &&
+                    this.x + this.size > paddle.x &&
+                    this.x < paddle.x + paddle.w) {
+
+                    if (this.vy > 0) { // Only bounce if moving down
+                        this.vy *= -1;
+                        this.y = paddle.y - this.size;
+                    }
+                }
+            }
+
+            draw() {
+                fill(COLORS.BRIGHT_WHITE);
+                rect(this.x, this.y, this.size, this.size);
+            }
+        }
+
+        class Brick {
+            constructor(x, y, col) {
+                this.x = x;
+                this.y = y;
+                this.w = BRICK_WIDTH - 2;
+                this.h = BRICK_HEIGHT - 2;
+                this.col = col;
+                this.active = true;
+            }
+
+            draw() {
+                if (!this.active) return;
+                fill(this.col);
+                rect(this.x + 1, this.y + 1, this.w, this.h);
+            }
+        }
+
+        function setup() {
+            createCanvas(V_WIDTH + BORDER_SIZE * 2, V_HEIGHT + BORDER_SIZE * 2);
+            noSmooth();
+            loadingTimer = millis();
+
+            // Setup beeper
+            try {
+                osc = new p5.Oscillator('square');
+            } catch (e) {
+                // Audio might not be supported or blocked
+            }
+        }
+
+        function playBeeper(freq, duration) {
+            if (!osc) return;
+            osc.freq(freq);
+            osc.start();
+            osc.amp(0.5, 0.05);
+            osc.amp(0, duration);
+            setTimeout(() => {
+                osc.stop();
+            }, duration * 1000);
+        }
+
+        function draw() {
+            if (gameState === 'LOADING') {
+                drawLoading();
+            } else if (gameState === 'START') {
+                drawStartMenu();
+            } else if (gameState === 'PLAYING') {
+                drawGame();
+            } else if (gameState === 'WIN') {
+                drawWinScreen();
+            } else if (gameState === 'GAMEOVER') {
+                drawGameOver();
+            }
+        }
+
+        function drawStartMenu() {
+            background(COLORS.BLACK);
+            drawBorder(COLORS.CYAN);
+            fill(COLORS.BRIGHT_YELLOW);
+            textAlign(CENTER, CENTER);
+            textSize(32);
+            text("THRO' THE WALL", width / 2, height / 3);
+
+            fill(COLORS.WHITE);
+            textSize(16);
+            text("PRESS ANY KEY TO START", width / 2, height * 2 / 3);
+
+            textSize(12);
+            text("USE ARROW KEYS TO MOVE", width / 2, height * 2 / 3 + 40);
+        }
+
+        function drawUI() {
+            fill(COLORS.BRIGHT_WHITE);
+            textAlign(LEFT, TOP);
+            textSize(14);
+            text(`SCORE: ${score}`, BORDER_SIZE + 10, 10);
+            textAlign(RIGHT, TOP);
+            text(`LIVES: ${lives}`, width - BORDER_SIZE - 10, 10);
+        }
+
+        function drawBorder(col) {
+            push();
+            fill(col);
+            noStroke();
+            rect(0, 0, width, BORDER_SIZE); // Top
+            rect(0, height - BORDER_SIZE, width, BORDER_SIZE); // Bottom
+            rect(0, 0, BORDER_SIZE, height); // Left
+            rect(width - BORDER_SIZE, 0, BORDER_SIZE, height); // Right
+            pop();
+        }
+
+        function keyPressed() {
+            if (getAudioContext().state !== 'running') {
+                getAudioContext().resume();
+            }
+            if (gameState === 'START') {
+                gameState = 'PLAYING';
+                resetGame();
+            } else if (gameState === 'WIN' || gameState === 'GAMEOVER') {
+                gameState = 'START';
+            }
+        }
+
+        function resetGame() {
+            score = 0;
+            lives = 3;
+            paddle = new Paddle();
+            ball = new Ball();
+            bricks = [];
+
+            const rowColors = [
+                COLORS.BRIGHT_RED,
+                COLORS.BRIGHT_MAGENTA,
+                COLORS.BRIGHT_BLUE,
+                COLORS.BRIGHT_CYAN,
+                COLORS.BRIGHT_GREEN,
+                COLORS.BRIGHT_YELLOW
+            ];
+
+            for (let r = 0; r < BRICK_ROWS; r++) {
+                for (let c = 0; c < BRICK_COLS; c++) {
+                    bricks.push(new Brick(
+                        BORDER_SIZE + c * BRICK_WIDTH,
+                        BORDER_SIZE + 40 + r * BRICK_HEIGHT,
+                        rowColors[r % rowColors.length]
+                    ));
+                }
+            }
+        }
+
+        function drawGame() {
+            background(COLORS.BLACK);
+            drawBorder(COLORS.WHITE);
+            drawUI();
+
+            paddle.update();
+            paddle.draw();
+
+            ball.update();
+            ball.draw();
+
+            let allCleared = true;
+            for (let brick of bricks) {
+                if (brick.active) {
+                    allCleared = false;
+                    brick.draw();
+
+                    // Ball-Brick Collision
+                    if (ball.x + ball.size > brick.x &&
+                        ball.x < brick.x + brick.w &&
+                        ball.y + ball.size > brick.y &&
+                        ball.y < brick.y + brick.h) {
+
+                        brick.active = false;
+                        score += 10;
+
+                        // Simple collision resolution: flip Y unless hit from side
+                        let prevX = ball.x - ball.vx;
+                        let prevY = ball.y - ball.vy;
+
+                        if (prevX + ball.size <= brick.x || prevX >= brick.x + brick.w) {
+                            ball.vx *= -1;
+                        } else {
+                            ball.vy *= -1;
+                        }
+                    }
+                }
+            }
+
+            if (allCleared) {
+                gameState = 'WIN';
+            }
+
+            if (ball.y > height) {
+                lives--;
+                playBeeper(100, 0.5); // Low buzz for losing life
+                if (lives > 0) {
+                    ball.reset();
+                } else {
+                    gameState = 'GAMEOVER';
+                }
+            }
+        }
+
+        function drawWinScreen() {
+            background(COLORS.BLACK);
+            drawBorder(COLORS.GREEN);
+            fill(COLORS.BRIGHT_GREEN);
+            textAlign(CENTER, CENTER);
+            textSize(32);
+            text("YOU WIN!", width / 2, height / 2);
+            fill(COLORS.WHITE);
+            textSize(16);
+            text("PRESS ANY KEY", width / 2, height / 2 + 50);
+        }
+
+        function drawGameOver() {
+            background(COLORS.BLACK);
+            drawBorder(COLORS.RED);
+            fill(COLORS.BRIGHT_RED);
+            textAlign(CENTER, CENTER);
+            textSize(32);
+            text("GAME OVER", width / 2, height / 2);
+            fill(COLORS.WHITE);
+            textSize(16);
+            text("PRESS ANY KEY", width / 2, height / 2 + 50);
+        }
+
+        function drawLoading() {
+            let elapsed = millis() - loadingTimer;
+            if (elapsed > 2000) {
+                gameState = 'START';
+            }
+
+            // Spectrum loading stripes - varying widths and rapid movement
+            background(COLORS.BLACK);
+            let y = 0;
+            while (y < height) {
+                let h = random([2, 4, 8, 16]);
+                if (random() > 0.3) {
+                    fill(random() > 0.5 ? COLORS.BLUE : COLORS.YELLOW);
+                } else {
+                    fill(COLORS.CYAN);
+                }
+                rect(0, y, width, h);
+                y += h;
+            }
+
+            // Optional: Draw a "loading" box in the center
+            fill(COLORS.WHITE);
+            rect(width/2 - 50, height/2 - 20, 100, 40);
+            fill(COLORS.BLACK);
+            textAlign(CENTER, CENTER);
+            textSize(12);
+            text("LOADING...", width/2, height/2);
+        }
+    </script>
+</body>
+</html>
