@@ -14,5 +14,4 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Entur SIRI-Lite Real-Time Map](./entur_siri_lite.html) Real-time public transport vehicles in Norway using Entur API.
 
 ## Games
-=======
 * [Thro' the Wall](./thro_the_wall.html) ZX Spectrum style breakout clone.
