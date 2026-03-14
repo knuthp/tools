@@ -2,3 +2,4 @@ node_modules/
 __pycache__/
 *.png
 .DS_Store
+.pytest_cache/
