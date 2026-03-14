@@ -1,4 +1,11 @@
+<<<<<<< HEAD
 node_modules/
 __pycache__/
 *.png
 .DS_Store
+=======
+__pycache__/
+.pytest_cache/
+*.png
+node_modules/
+>>>>>>> 170dfa1 (Fix Entur tool syntax, add .gitignore, and include tests)
