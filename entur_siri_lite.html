@@ -9,14 +9,75 @@
   <link href="https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.css" rel="stylesheet" />
 
   <style>
-    body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; }
+    body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+    #tooltip {
+      position: absolute;
+      z-index: 1000;
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 12px;
+      border-radius: 4px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      font-family: sans-serif;
+      font-size: 13px;
+      display: none;
+      min-width: 200px;
+      border: 1px solid #ccc;
+    }
+    .t-row { display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px; }
+    .t-label { font-weight: bold; color: #555; margin-right: 10px; }
+    .t-value { color: #000; }
+    .t-header { font-weight: bold; font-size: 14px; margin-bottom: 8px; color: #0078ff; border-bottom: 2px solid #0078ff; }
+    #close-tooltip {
+      display: none;
+      position: absolute;
+      right: 5px;
+      top: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      background: #eee;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      text-align: center;
+      line-height: 20px;
+      pointer-events: auto;
+    }
+    @media (max-width: 600px) {
+      #tooltip {
+        width: 80%;
+        left: 10% !important;
+        top: auto !important;
+        bottom: 20px;
+      }
+      #close-tooltip { display: block; }
+    }
   </style>
 </head>
 
 <body>
 <div id="map"></div>
+<div id="tooltip">
+  <div id="close-tooltip">×</div>
+  <div id="tooltip-content"></div>
+</div>
 
 <script>
+const SVG_ICONS = {
+  bus: `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="12" rx="2"/><path d="M7 21h0"/><path d="M17 21h0"/><path d="M4 8h16"/><path d="M10 16h4"/><circle cx="7" cy="21" r="1"/><circle cx="17" cy="21" r="1"/></svg>`,
+  tram: `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 22v-2"/><path d="M17 22v-2"/><path d="M8 8V4h8v4"/><path d="M9.5 10h5"/><path d="M4 8h16v10H4z"/><path d="M12 4V2"/></svg>`,
+  rail: `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="14" rx="2"/><path d="M4 11h16"/><path d="M12 3v8"/><path d="M8 17l-2 4"/><path d="M16 17l2 4"/></svg>`,
+  ferry: `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M22 12l-2.26 5.12a2 2 0 0 1-1.83 1.19H6.09a2 2 0 0 1-1.83-1.19L2 12z"/><path d="M7 12V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v7"/><path d="M12 8h.01"/></svg>`,
+  metro: `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4V2"/><path d="M4 6V4h16v2"/><path d="M4 18h16v-9H4v9Z"/><path d="M14 13h4"/><path d="M6 13h4"/><path d="M8 18v2"/><path d="M16 18v2"/></svg>`,
+  air: `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>`,
+  default: `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`
+};
+
+const ICON_URLS = {};
+for (const [key, svg] of Object.entries(SVG_ICONS)) {
+  ICON_URLS[key] = 'data:image/svg+xml;base64,' + btoa(svg);
+}
+
 // 1. Initialize basemap
 const map = new maplibregl.Map({
   container: 'map',
@@ -48,9 +109,82 @@ const map = new maplibregl.Map({
 const deckgl = new deck.MapboxOverlay({
   interleaved: false,
   layers: [],
-  getTooltip: ({object}) => object && `${object.line || "?"} (${object.id})`
+  getTooltip: null
 });
 map.addControl(deckgl);
+
+let selectedVehicle = null;
+let currentVehicles = [];
+
+// Tooltip handling
+function showTooltip(info) {
+  const tooltip = document.getElementById('tooltip');
+  const content = document.getElementById('tooltip-content');
+
+  if (!info || !info.object) {
+    if (!selectedVehicle) {
+      tooltip.style.display = 'none';
+    }
+    return;
+  }
+
+  const d = info.object;
+
+  // Update content
+  let html = `<div class="t-header">${d.lineName || d.line || 'Vehicle'} to ${d.destination || 'Unknown'}</div>`;
+
+  const fields = [
+    ['Vehicle ID', d.id],
+    ['Operator', d.operator],
+    ['Mode', d.mode],
+    ['From', d.origin],
+    ['To', d.destination],
+    ['Delay', d.delayText],
+    ['Occupancy', d.occupancy]
+  ];
+
+  fields.forEach(([label, value]) => {
+    if (value) {
+      html += `<div class="t-row"><span class="t-label">${label}</span><span class="t-value">${value}</span></div>`;
+    }
+  });
+
+  content.innerHTML = html;
+  tooltip.style.display = 'block';
+  tooltip.style.pointerEvents = selectedVehicle ? 'auto' : 'none';
+
+  // Position the tooltip if we have screen coordinates
+  if (info.x !== undefined && info.y !== undefined) {
+    tooltip.style.left = (info.x + 15) + 'px';
+    tooltip.style.top = (info.y + 15) + 'px';
+  }
+}
+
+document.getElementById('close-tooltip').onclick = (e) => {
+  e.stopPropagation();
+  selectedVehicle = null;
+  showTooltip(null);
+  updateLayer(currentVehicles);
+};
+
+// Parse ISO8601 duration
+function parseDuration(duration) {
+  if (!duration) return null;
+  const match = duration.match(/([+-])?PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return duration;
+  const sign = match[1] === '-' ? '-' : '+';
+  const hours = match[2] ? parseInt(match[2]) : 0;
+  const minutes = match[3] ? parseInt(match[3]) : 0;
+  const seconds = match[4] ? parseInt(match[4]) : 0;
+
+  let text = '';
+  if (hours > 0) text += hours + 'h ';
+  if (minutes > 0) text += minutes + 'm ';
+  if (seconds > 0 && !hours) text += seconds + 's';
+
+  if (!text) return 'On time';
+  return sign + text.trim();
+}
 
 // 2. Fetch SIRI-Lite VM
 async function fetchVM() {
@@ -72,19 +206,41 @@ async function fetchVM() {
     if (json?.Siri?.ServiceDelivery?.VehicleMonitoringDelivery) {
       for (const delivery of json.Siri.ServiceDelivery.VehicleMonitoringDelivery) {
         for (const vm of delivery.VehicleActivity || []) {
-          const pos = vm?.MonitoredVehicleJourney?.VehicleLocation;
+          const journey = vm.MonitoredVehicleJourney;
+          if (!journey) continue;
+
+          const pos = journey.VehicleLocation;
           if (!pos) continue;
 
           vehicles.push({
-            id: vm.MonitoredVehicleJourney?.VehicleRef || "unknown",
+            id: journey.VehicleRef || "unknown",
             position: [pos.Longitude, pos.Latitude],
-            line: vm.MonitoredVehicleJourney?.LineRef
+            line: journey.LineRef?.value || journey.LineRef,
+            lineName: journey.PublishedLineName?.[0]?.value,
+            destination: journey.DestinationName?.[0]?.value,
+            origin: journey.OriginName?.[0]?.value,
+            mode: journey.VehicleMode?.[0],
+            operator: journey.OperatorRef?.value,
+            bearing: journey.Bearing,
+            delay: journey.Delay,
+            delayText: parseDuration(journey.Delay),
+            occupancy: journey.Occupancy
           });
         }
       }
     }
 
+    currentVehicles = vehicles;
     updateLayer(vehicles);
+
+    // Update selected vehicle if it still exists
+    if (selectedVehicle) {
+      const updated = vehicles.find(v => v.id === selectedVehicle.id);
+      if (updated) {
+        selectedVehicle = updated;
+        showTooltip({ object: updated });
+      }
+    }
 
   } catch (err) {
     console.error("Failed updating VM:", err);
@@ -93,18 +249,55 @@ async function fetchVM() {
 
 // 3. Update deck.gl layer
 function updateLayer(vehicles) {
+  const layer = new deck.IconLayer({
+    id: 'vehicles-icon',
+    data: vehicles,
+    pickable: true,
+    getPosition: d => d.position,
+    getIcon: d => {
+      const mode = d.mode || 'default';
+      return {
+        url: ICON_URLS[mode] || ICON_URLS.default,
+        width: 100,
+        height: 100,
+        anchorY: 50,
+        anchorX: 50,
+        mask: true
+      };
+    },
+    getSize: 32,
+    getColor: d => {
+      if (selectedVehicle && d.id === selectedVehicle.id) return [255, 200, 0];
+      switch(d.mode) {
+        case 'bus': return [255, 100, 0];
+        case 'rail': return [0, 100, 255];
+        case 'tram': return [100, 200, 0];
+        case 'ferry': return [0, 200, 255];
+        case 'metro': return [200, 0, 100];
+        default: return [150, 150, 150];
+      }
+    },
+    getAngle: d => d.bearing ? -d.bearing : 0,
+    onHover: info => {
+      if (!selectedVehicle) showTooltip(info);
+    },
+    onClick: info => {
+      if (info.object) {
+        selectedVehicle = info.object;
+        showTooltip(info);
+      } else {
+        selectedVehicle = null;
+        document.getElementById('tooltip').style.display = 'none';
+      }
+      updateLayer(vehicles);
+    },
+    updateTriggers: {
+      getColor: [selectedVehicle?.id]
+    }
+  });
+
   deckgl.setProps({
-    layers: [
-      new deck.ScatterplotLayer({
-        id: 'vehicles',
-        data: vehicles,
-        getPosition: d => d.position,
-        getFillColor: [0, 150, 255],
-        getRadius: 40,
-        radiusMinPixels: 4,
-        pickable: true
-      })
-    ]
+    layers: [layer]
   });
 }
 
