@@ -114,7 +114,10 @@ const deckgl = new deck.MapboxOverlay({
 map.addControl(deckgl);
 
 let selectedVehicle = null;
-let currentVehicles = [];
+let vmVehicles = [];
+let etVehicles = [];
+let geometryCache = new Map(); // id -> { points, stops }
+let etUpdateInterval = 60000;
 
 // Tooltip handling
 function showTooltip(info) {
@@ -140,7 +143,8 @@ function showTooltip(info) {
     ['From', d.origin],
     ['To', d.destination],
     ['Delay', d.delayText],
-    ['Occupancy', d.occupancy]
+    ['Occupancy', d.occupancy],
+    ['Status', d.isEstimated ? 'Estimated (from timetable)' : 'Real-time']
   ];
 
   fields.forEach(([label, value]) => {
@@ -164,7 +168,7 @@ document.getElementById('close-tooltip').onclick = (e) => {
   e.stopPropagation();
   selectedVehicle = null;
   showTooltip(null);
-  updateLayer(currentVehicles);
+  renderAll();
 };
 
 // Parse ISO8601 duration
@@ -230,20 +234,306 @@ async function fetchVM() {
       }
     }
 
-    currentVehicles = vehicles;
-    updateLayer(vehicles);
+    vmVehicles = vehicles;
+    renderAll();
 
-    // Update selected vehicle if it still exists
-    if (selectedVehicle) {
-      const updated = vehicles.find(v => v.id === selectedVehicle.id);
-      if (updated) {
-        selectedVehicle = updated;
-        showTooltip({ object: updated });
+  } catch (err) {
+    console.error("Failed updating VM:", err);
+  }
+}
+
+// 2.5 Fetch ET for Ruter
+async function fetchET() {
+  try {
+    const resp = await fetch(
+      "https://api.entur.io/realtime/v1/rest/et?datasetId=RUT",
+      {
+        headers: {
+          "ET-Client-Name": "spartid-singlehtml",
+          "Accept": "application/json"
+        }
+      }
+    );
+
+    const json = await resp.json();
+    const newEtVehicles = [];
+
+    const deliveries = json?.Siri?.ServiceDelivery?.EstimatedTimetableDelivery || [];
+    for (const delivery of deliveries) {
+      for (const frame of delivery.EstimatedJourneyVersionFrame || []) {
+        for (const evj of frame.EstimatedVehicleJourney || []) {
+          const journeyId = evj.FramedVehicleJourneyRef?.DatedVehicleJourneyRef;
+          if (!journeyId) continue;
+
+          // Process calls to get timing
+          const calls = evj.RecordedCalls?.RecordedCall || [];
+          const estCalls = evj.EstimatedCalls?.EstimatedCall || [];
+          const allCalls = [...calls, ...estCalls].sort((a, b) => a.Order - b.Order);
+
+          if (allCalls.length < 2) continue;
+
+          newEtVehicles.push({
+            id: evj.VehicleRef?.value || journeyId,
+            journeyId: journeyId,
+            line: evj.LineRef?.value,
+            lineName: evj.PublishedLineName?.[0]?.value,
+            destination: evj.DestinationName?.[0]?.value,
+            origin: evj.OriginName?.[0]?.value,
+            operator: evj.OperatorRef?.value,
+            calls: allCalls.map(c => ({
+              stopId: c.StopPointRef?.value,
+              order: c.Order,
+              arrival: c.ActualArrivalTime || c.ExpectedArrivalTime || c.AimedArrivalTime,
+              departure: c.ActualDepartureTime || c.ExpectedDepartureTime || c.AimedDepartureTime
+            })),
+            isEstimated: true,
+            mode: 'bus' // Default for Ruter if not specified, though we should try to detect
+          });
+        }
+      }
+    }
+
+    etVehicles = newEtVehicles;
+    // Trigger geometry fetching for new journeys
+    for (const v of etVehicles) {
+      if (!geometryCache.has(v.journeyId)) {
+        fetchGeometry(v.journeyId);
       }
     }
 
   } catch (err) {
-    console.error("Failed updating VM:", err);
+    console.error("Failed updating ET:", err);
+  }
+}
+
+async function fetchGeometry(journeyId) {
+  if (geometryCache.has(journeyId)) return;
+  geometryCache.set(journeyId, { loading: true });
+
+  try {
+    const query = `
+      query($id: String!) {
+        serviceJourney(id: $id) {
+          id
+          type
+          line { publicCode transportMode }
+          pointsOnLink { points }
+          estimatedCalls {
+            quay { id latitude longitude }
+            order
+          }
+        }
+      }
+    `;
+
+    const resp = await fetch("https://api.entur.io/journey-planner/v3/graphql", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "ET-Client-Name": "spartid-singlehtml"
+      },
+      body: JSON.stringify({ query, variables: { id: journeyId } })
+    });
+
+    const json = await resp.json();
+    const sj = json?.data?.serviceJourney;
+
+    if (sj) {
+      const transportMode = sj.line?.transportMode;
+      const points = sj.pointsOnLink?.points ? decodePolyline(sj.pointsOnLink.points) : [];
+      const stops = sj.estimatedCalls?.map(c => ({
+        id: c.quay?.id,
+        lat: c.quay?.latitude,
+        lon: c.quay?.longitude,
+        order: c.order
+      })) || [];
+
+      geometryCache.set(journeyId, { points, stops, mode: transportMode || sj.type });
+    }
+  } catch (err) {
+    console.error("Failed fetching geometry for", journeyId, err);
+    geometryCache.delete(journeyId);
+  }
+}
+
+function getSegmentPoints(points, stopA, stopB) {
+  if (!points || points.length === 0) return [];
+
+  // Find point closest to stopA and stopB
+  let idxA = findClosestPointIndex(points, stopA);
+  let idxB = findClosestPointIndex(points, stopB);
+
+  if (idxA === -1 || idxB === -1) return [];
+
+  // If the path is reversed, flip it
+  if (idxA > idxB) {
+    return points.slice(idxB, idxA + 1).reverse();
+  }
+  return points.slice(idxA, idxB + 1);
+}
+
+function findClosestPointIndex(points, stop) {
+  let minDist = Infinity;
+  let minIdx = -1;
+  for (let i = 0; i < points.length; i++) {
+    const d = Math.pow(points[i][0] - stop.lon, 2) + Math.pow(points[i][1] - stop.lat, 2);
+    if (d < minDist) {
+      minDist = d;
+      minIdx = i;
+    }
+  }
+  // Threshold to avoid matching completely unrelated points (approx 1km)
+  return minDist < 0.0001 ? minIdx : -1;
+}
+
+function interpolateOnPath(points, ratio) {
+  if (points.length < 2) return { coords: points[0], bearing: 0 };
+
+  // Calculate total distance (in degrees squared, good enough for small scale)
+  let segmentDistances = [];
+  let totalDist = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const d = Math.sqrt(Math.pow(points[i+1][0] - points[i][0], 2) + Math.pow(points[i+1][1] - points[i][1], 2));
+    segmentDistances.push(d);
+    totalDist += d;
+  }
+
+  if (totalDist === 0) return { coords: points[0], bearing: 0 };
+
+  let targetDist = totalDist * ratio;
+  let currentDist = 0;
+
+  for (let i = 0; i < segmentDistances.length; i++) {
+    if (currentDist + segmentDistances[i] >= targetDist) {
+      const segmentRatio = (targetDist - currentDist) / segmentDistances[i];
+      const p1 = points[i];
+      const p2 = points[i+1];
+      const lon = p1[0] + (p2[0] - p1[0]) * segmentRatio;
+      const lat = p1[1] + (p2[1] - p1[1]) * segmentRatio;
+      const bearing = Math.atan2(p2[0] - p1[0], p2[1] - p1[1]) * 180 / Math.PI;
+      return { coords: [lon, lat], bearing: bearing };
+    }
+    currentDist += segmentDistances[i];
+  }
+  return { coords: points[points.length - 1], bearing: 0 };
+}
+
+function decodePolyline(encoded) {
+  let points = [];
+  let index = 0, len = encoded.length;
+  let lat = 0, lng = 0;
+  while (index < len) {
+    let b, shift = 0, result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    lat += ((result & 1) ? ~(result >> 1) : (result >> 1));
+    shift = 0; result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    lng += ((result & 1) ? ~(result >> 1) : (result >> 1));
+    points.push([lng * 1e-5, lat * 1e-5]);
+  }
+  return points;
+}
+
+function estimatePositions() {
+  const now = new Date();
+  const estimated = [];
+
+  for (const v of etVehicles) {
+    const geom = geometryCache.get(v.journeyId);
+    if (!geom || geom.loading) continue;
+
+    // Update mode from geometry if available
+    if (geom.mode) v.mode = geom.mode;
+
+    // Find current segment
+    let prevCall = null;
+    let nextCall = null;
+
+    for (let i = 0; i < v.calls.length; i++) {
+      const call = v.calls[i];
+      const depTime = new Date(call.departure);
+      const arrTime = new Date(call.arrival);
+
+      if (now < arrTime) {
+        nextCall = call;
+        prevCall = v.calls[i-1];
+        break;
+      } else if (now >= arrTime && now <= depTime) {
+        // At stop
+        prevCall = call;
+        nextCall = call;
+        break;
+      }
+    }
+
+    if (!prevCall && v.calls.length > 0) {
+        if (now < new Date(v.calls[0].arrival)) {
+            // Not started yet, hide or show at first stop
+            continue;
+        } else {
+            // Finished
+            continue;
+        }
+    }
+
+    if (prevCall && nextCall) {
+      if (prevCall === nextCall) {
+        // At stop
+        const stop = geom.stops.find(s => s.id === prevCall.stopId);
+        if (stop) {
+          estimated.push({ ...v, position: [stop.lon, stop.lat], bearing: 0 });
+        }
+      } else {
+        // Between stops
+        const stopA = geom.stops.find(s => s.id === prevCall.stopId);
+        const stopB = geom.stops.find(s => s.id === nextCall.stopId);
+
+        if (stopA && stopB) {
+          const startTime = new Date(prevCall.departure).getTime();
+          const endTime = new Date(nextCall.arrival).getTime();
+          const total = endTime - startTime;
+          const elapsed = now.getTime() - startTime;
+          const ratio = Math.max(0, Math.min(1, elapsed / total));
+
+          // Interpolate along polyline
+          const segmentPoints = getSegmentPoints(geom.points, stopA, stopB);
+          if (segmentPoints.length >= 2) {
+            const pos = interpolateOnPath(segmentPoints, ratio);
+            estimated.push({ ...v, position: pos.coords, bearing: pos.bearing });
+          } else {
+            // Fallback to linear
+            const lon = stopA.lon + (stopB.lon - stopA.lon) * ratio;
+            const lat = stopA.lat + (stopB.lat - stopA.lat) * ratio;
+            const bearing = Math.atan2(stopB.lon - stopA.lon, stopB.lat - stopA.lat) * 180 / Math.PI;
+            estimated.push({ ...v, position: [lon, lat], bearing: bearing });
+          }
+        }
+      }
+    }
+  }
+  return estimated;
+}
+
+function renderAll() {
+  const estimated = estimatePositions();
+  const allVehicles = [...vmVehicles, ...estimated];
+  updateLayer(allVehicles);
+
+  // Update selected vehicle
+  if (selectedVehicle) {
+    const updated = allVehicles.find(v => v.id === selectedVehicle.id);
+    if (updated) {
+      selectedVehicle = updated;
+      showTooltip({ object: updated });
+    }
   }
 }
 
@@ -289,7 +579,7 @@ function updateLayer(vehicles) {
         selectedVehicle = null;
         document.getElementById('tooltip').style.display = 'none';
       }
-      updateLayer(vehicles);
+      renderAll();
     },
     updateTriggers: {
       getColor: [selectedVehicle?.id]
@@ -301,9 +591,12 @@ function updateLayer(vehicles) {
   });
 }
 
-// 4. Update every 10 seconds
+// 4. Update loops
 fetchVM();
+fetchET();
 setInterval(fetchVM, 10000);
+setInterval(fetchET, etUpdateInterval);
+setInterval(renderAll, 1000); // Smooth updates
 
 </script>
 
