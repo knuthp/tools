@@ -5,30 +5,38 @@
 #   "pyarrow",
 #   "requests",
 #   "shapely",
+#   "huggingface_hub",
 # ]
 # ///
 
+import os
+import tempfile
 import zipfile
-from io import BytesIO
 from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 import requests
+from huggingface_hub import HfApi
 from shapely.geometry import LineString
 
 GTFS_URL = "https://storage.googleapis.com/marduk-production/outbound/gtfs/rb_norway-aggregated-gtfs.zip"
 OUTPUT_DIR = Path("data")
+HF_REPO_ID = "knuthp/GTFS_Entur"
 
-def download_gtfs(url):
+def download_gtfs(url, temp_file):
     print(f"Downloading GTFS from {url}...")
-    response = requests.get(url)
-    response.raise_for_status()
-    return BytesIO(response.content)
+    with requests.get(url, stream=True) as r:
+        r.raise_for_status()
+        for chunk in r.iter_content(chunk_size=8192):
+            temp_file.write(chunk)
+    temp_file.flush()
+    temp_file.seek(0)
+    print("Download complete.")
 
-def process_gtfs(zip_buffer, output_dir):
+def process_gtfs(zip_path, output_dir):
     output_dir.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(zip_buffer) as z:
+    with zipfile.ZipFile(zip_path) as z:
         for filename in z.namelist():
             if not filename.endswith(".txt"):
                 continue
@@ -84,9 +92,30 @@ def process_gtfs(zip_buffer, output_dir):
 
             print(f"Saved to {output_path}")
 
+def upload_to_huggingface(directory, repo_id):
+    token = os.environ.get("HF_TOKEN")
+    if not token:
+        print("HF_TOKEN not found in environment. Skipping upload.")
+        return
+
+    print(f"Uploading files from {directory} to Hugging Face repo {repo_id}...")
+    api = HfApi()
+
+    # Upload the entire directory to the dataset repository
+    api.upload_folder(
+        folder_path=str(directory),
+        repo_id=repo_id,
+        repo_type="dataset",
+        token=token
+    )
+    print("Upload complete.")
+
 def main():
-    zip_buffer = download_gtfs(GTFS_URL)
-    process_gtfs(zip_buffer, OUTPUT_DIR)
+    with tempfile.NamedTemporaryFile() as tmp:
+        download_gtfs(GTFS_URL, tmp)
+        process_gtfs(tmp.name, OUTPUT_DIR)
+
+    upload_to_huggingface(OUTPUT_DIR, HF_REPO_ID)
     print("Done!")
 
 if __name__ == "__main__":
