@@ -16,3 +16,4 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 
 ## Games
 * [Thro' the Wall](./thro_the_wall.html) ZX Spectrum style breakout clone.
+* [Fox Platformer](./fox_platformer.html) A Mario-style platformer featuring a Red Fox and Siberian Huskies.
