@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fox Platformer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/addons/p5.sound.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        canvas {
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // --- Constants & Config ---
+        const TILE_SIZE = 40;
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -12;
+        const MOVE_SPEED = 4;
+        const INVINCIBLE_TIME = 2000;
+
+        // --- Asset Generation ---
+        let assets = {};
+        const PALETTE = {
+            'R': [255, 69, 0],    // Red-Orange (Fox)
+            'W': [255, 255, 255], // White (Fox Belly, Husky)
+            'B': [0, 0, 0],       // Black (Eyes)
+            'G': [34, 139, 34],   // Forest Green (Grass)
+            'D': [139, 69, 19],   // Saddle Brown (Dirt)
+            'Y': [255, 215, 0],   // Gold (Question Block)
+            'S': [192, 192, 192], // Silver (Husky Fur)
+            'P': [255, 105, 180], // Pink (Power-up)
+            'K': [128, 128, 128], // Dark Gray (Brick)
+            'F': [0, 100, 0],     // Dark Green (Flag)
+            'E': [210, 180, 140], // Tan (Fox Ears/Highlights)
+            'H': [100, 100, 255], // Light Blue (Husky Eyes)
+            '?': [255, 255, 255], // White
+            'M': [101, 67, 33],    // Dark Brown (Pole)
+        };
+
+        const SPRITE_DATA = {
+            fox: [
+                "  RRR   ",
+                " RRRRR  ",
+                "REEBBR  ",
+                "RRRRRR  ",
+                " RWWWR  ",
+                " RRRRR  ",
+                " R   R  ",
+                " R   R  "
+            ],
+            husky: [
+                "  SSS   ",
+                " SSSSS  ",
+                "SWWBBW  ",
+                "SSWWHW  ",
+                " SWWWS  ",
+                " SSSSS  ",
+                " S   S  ",
+                " S   S  "
+            ],
+            grass: [
+                "GGGGGGGG",
+                "GGGGGGGG",
+                "DDDDDDDD",
+                "DDDDDDDD",
+                "DDDDDDDD",
+                "DDDDDDDD",
+                "DDDDDDDD",
+                "DDDDDDDD"
+            ],
+            brick: [
+                "KKKKKKKK",
+                "K      K",
+                "K KKKK K",
+                "K K  K K",
+                "K KKKK K",
+                "K      K",
+                "KKKKKKKK",
+                "        "
+            ],
+            qBlock: [
+                "YYYYYYYY",
+                "Y      Y",
+                "Y  ??  Y",
+                "Y  ??  Y",
+                "Y  ??  Y",
+                "Y      Y",
+                "YYYYYYYY",
+                "        "
+            ],
+            powerUp: [
+                "  PPP   ",
+                " PPPPP  ",
+                "PPPPPPP ",
+                "PPPPPPP ",
+                " PPPPP  ",
+                "  PPP   ",
+                "   P    ",
+                "        "
+            ],
+            flag: [
+                " FFFFF  ",
+                " FFFFF  ",
+                " FFFFF  ",
+                " FFFFF  ",
+                "        ",
+                "        ",
+                "        ",
+                "        "
+            ],
+            pole: [
+                "  M     ",
+                "  M     ",
+                "  M     ",
+                "  M     ",
+                "  M     ",
+                "  M     ",
+                "  M     ",
+                "  M     "
+            ]
+        };
+
+        function createPixelSprite(w, h, scale, pixelData, palette) {
+            let img = createImage(w * scale, h * scale);
+            img.loadPixels();
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    let pixelChar = pixelData[y][x];
+                    let col = palette[pixelChar];
+                    if (col) {
+                        for (let py = 0; py < scale; py++) {
+                            for (let px = 0; px < scale; px++) {
+                                img.set(x * scale + px, y * scale + py, color(col));
+                            }
+                        }
+                    }
+                }
+            }
+            img.updatePixels();
+            return img;
+        }
+
+        function generateAssets() {
+            assets.foxSmall = createPixelSprite(8, 8, 5, SPRITE_DATA.fox, PALETTE);
+            assets.foxSuper = createPixelSprite(8, 8, 7, SPRITE_DATA.fox, PALETTE);
+            assets.husky = createPixelSprite(8, 8, 5, SPRITE_DATA.husky, PALETTE);
+            assets.grass = createPixelSprite(8, 8, 5, SPRITE_DATA.grass, PALETTE);
+            assets.brick = createPixelSprite(8, 8, 5, SPRITE_DATA.brick, PALETTE);
+            assets.qBlock = createPixelSprite(8, 8, 5, SPRITE_DATA.qBlock, PALETTE);
+            assets.powerUp = createPixelSprite(8, 8, 5, SPRITE_DATA.powerUp, PALETTE);
+            assets.flag = createPixelSprite(8, 8, 5, SPRITE_DATA.flag, PALETTE);
+            assets.pole = createPixelSprite(8, 8, 5, SPRITE_DATA.pole, PALETTE);
+        }
+
+        // --- Sound Effects ---
+        let sounds = {};
+        function setupSounds() {
+            sounds.jump = new p5.Oscillator('triangle');
+            sounds.stomp = new p5.Oscillator('square');
+            sounds.powerUp = new p5.Oscillator('sine');
+            sounds.hit = new p5.Oscillator('sawtooth');
+            sounds.win = new p5.Oscillator('triangle');
+        }
+
+        function playJumpSound() { if (sounds.jump) { try { sounds.jump.start(); sounds.jump.freq(400, 0); sounds.jump.freq(800, 0.1); sounds.jump.amp(0.3, 0); sounds.jump.amp(0, 0.1); setTimeout(() => sounds.jump.stop(), 100); } catch(e){ console.error(e); } } }
+        function playStompSound() { if (sounds.stomp) { try { sounds.stomp.start(); sounds.stomp.freq(200, 0); sounds.stomp.freq(50, 0.1); sounds.stomp.amp(0.3, 0); sounds.stomp.amp(0, 0.1); setTimeout(() => sounds.stomp.stop(), 100); } catch(e){ console.error(e); } } }
+        function playPowerUpSound() { if (sounds.powerUp) { try { sounds.powerUp.start(); sounds.powerUp.freq(400, 0); sounds.powerUp.freq(600, 0.1); sounds.powerUp.freq(800, 0.2); sounds.powerUp.amp(0.3, 0); sounds.powerUp.amp(0, 0.3); setTimeout(() => sounds.powerUp.stop(), 300); } catch(e){ console.error(e); } } }
+        function playHitSound() { if (sounds.hit) { try { sounds.hit.start(); sounds.hit.freq(150, 0); sounds.hit.freq(10, 0.2); sounds.hit.amp(0.5, 0); sounds.hit.amp(0, 0.2); setTimeout(() => sounds.hit.stop(), 200); } catch(e){ console.error(e); } } }
+        function playWinSound() { if (sounds.win) { try { sounds.win.start(); sounds.win.freq(400, 0); sounds.win.freq(800, 0.5); sounds.win.amp(0.3, 0); sounds.win.amp(0, 0.5); setTimeout(() => sounds.win.stop(), 500); } catch(e){ console.error(e); } } }
+
+        // --- Classes ---
+        class Entity {
+            constructor(x, y, w, h) {
+                this.x = x;
+                this.y = y;
+                this.w = w;
+                this.h = h;
+                this.vx = 0;
+                this.vy = 0;
+            }
+
+            getBounds() {
+                return { left: this.x, right: this.x + this.w, top: this.y, bottom: this.y + this.h };
+            }
+
+            collidesWith(other) {
+                let b1 = this.getBounds();
+                let b2 = other.getBounds();
+                return b1.right > b2.left && b1.left < b2.right && b1.bottom > b2.top && b1.top < b2.bottom;
+            }
+        }
+
+        class Player extends Entity {
+            constructor(x, y) {
+                super(x, y, 40, 40);
+                this.isSuper = false;
+                this.onGround = false;
+                this.facing = 1;
+                this.invincibleUntil = 0;
+                this.lives = 9;
+            }
+
+            update() {
+                this.vx = 0;
+                if (keyIsDown(LEFT_ARROW) || isLeftPressed) {
+                    this.vx = -MOVE_SPEED;
+                    this.facing = -1;
+                }
+                if (keyIsDown(RIGHT_ARROW) || isRightPressed) {
+                    this.vx = MOVE_SPEED;
+                    this.facing = 1;
+                }
+
+                this.vy += GRAVITY;
+                this.x += this.vx;
+                this.handleXCollisions();
+                this.y += this.vy;
+                this.onGround = false;
+                this.handleYCollisions();
+
+                if (this.y > levelHeight + 100) {
+                    this.die();
+                }
+            }
+
+            handleXCollisions() {
+                for (let tile of level.getNearbyTiles(this)) {
+                    if (tile.isSolid && this.collidesWith(tile)) {
+                        if (this.vx > 0) this.x = tile.x - this.w;
+                        if (this.vx < 0) this.x = tile.x + tile.w;
+                    }
+                }
+            }
+
+            handleYCollisions() {
+                for (let tile of level.getNearbyTiles(this)) {
+                    if (tile.isSolid && this.collidesWith(tile)) {
+                        if (this.vy > 0) {
+                            this.y = tile.y - this.h;
+                            this.vy = 0;
+                            this.onGround = true;
+                        } else if (this.vy < 0) {
+                            this.y = tile.y + tile.h;
+                            this.vy = 0;
+                            tile.onHit(this);
+                        }
+                    }
+                }
+            }
+
+            jump() {
+                if (this.onGround) {
+                    this.vy = JUMP_FORCE;
+                    playJumpSound();
+                }
+            }
+
+            hit() {
+                if (millis() < this.invincibleUntil) return;
+                if (this.isSuper) {
+                    this.isSuper = false;
+                    this.h = 40;
+                    this.invincibleUntil = millis() + INVINCIBLE_TIME;
+                    playHitSound();
+                } else {
+                    this.die();
+                }
+            }
+
+            die() {
+                this.lives--;
+                if (this.lives > 0) {
+                    this.resetPos();
+                    playHitSound();
+                } else {
+                    gameState = 'GAMEOVER';
+                }
+            }
+
+            resetPos() {
+                this.x = 100;
+                this.y = 100;
+                this.vx = 0;
+                this.vy = 0;
+                this.isSuper = false;
+                this.h = 40;
+                this.invincibleUntil = millis() + INVINCIBLE_TIME;
+            }
+
+            draw() {
+                push();
+                if (millis() < this.invincibleUntil && frameCount % 10 < 5) {
+                    pop();
+                    return;
+                }
+                translate(this.x + this.w/2, this.y + this.h/2);
+                scale(this.facing, 1);
+                let img = this.isSuper ? assets.foxSuper : assets.foxSmall;
+                imageMode(CENTER);
+                image(img, 0, 0);
+                pop();
+            }
+        }
+
+        class Enemy extends Entity {
+            constructor(x, y) {
+                super(x, y, 40, 40);
+                this.vx = -2;
+                this.active = true;
+            }
+
+            update() {
+                if (!this.active) return;
+                this.vy += GRAVITY;
+                this.x += this.vx;
+                this.handleXCollisions();
+                this.y += this.vy;
+                this.handleYCollisions();
+            }
+
+            handleXCollisions() {
+                for (let tile of level.getNearbyTiles(this)) {
+                    if (tile.isSolid && this.collidesWith(tile)) {
+                        this.vx *= -1;
+                        this.x += this.vx;
+                        break;
+                    }
+                }
+            }
+
+            handleYCollisions() {
+                for (let tile of level.getNearbyTiles(this)) {
+                    if (tile.isSolid && this.collidesWith(tile)) {
+                        if (this.vy > 0) {
+                            this.y = tile.y - this.h;
+                            this.vy = 0;
+                        }
+                    }
+                }
+            }
+
+            draw() {
+                if (!this.active) return;
+                push();
+                translate(this.x + this.w/2, this.y + this.h/2);
+                scale(this.vx > 0 ? -1 : 1, 1);
+                imageMode(CENTER);
+                image(assets.husky, 0, 0);
+                pop();
+            }
+        }
+
+        class Tile extends Entity {
+            constructor(x, y, type) {
+                super(x, y, TILE_SIZE, TILE_SIZE);
+                this.type = type;
+                this.isSolid = true;
+                this.hit = false;
+            }
+
+            onHit(player) {
+                if (this.type === '?' && !this.hit) {
+                    this.hit = true;
+                    level.items.push(new PowerUp(this.x, this.y - TILE_SIZE));
+                }
+                if (this.type === 'B' && player.isSuper) {
+                    this.isSolid = false;
+                    this.type = ' ';
+                }
+            }
+
+            draw() {
+                if (this.type === 'G') image(assets.grass, this.x, this.y, TILE_SIZE, TILE_SIZE);
+                if (this.type === 'B') image(assets.brick, this.x, this.y, TILE_SIZE, TILE_SIZE);
+                if (this.type === '?') image(this.hit ? assets.brick : assets.qBlock, this.x, this.y, TILE_SIZE, TILE_SIZE);
+                if (this.type === 'P') image(assets.pole, this.x, this.y, TILE_SIZE, TILE_SIZE);
+                if (this.type === 'F') image(assets.flag, this.x, this.y, TILE_SIZE, TILE_SIZE);
+            }
+        }
+
+        class PowerUp extends Entity {
+            constructor(x, y) {
+                super(x, y, 40, 40);
+                this.vx = 2;
+                this.active = true;
+            }
+
+            update() {
+                if (!this.active) return;
+                this.vy += GRAVITY;
+                this.x += this.vx;
+                this.handleXCollisions();
+                this.y += this.vy;
+                this.handleYCollisions();
+            }
+
+            handleXCollisions() {
+                for (let tile of level.getNearbyTiles(this)) {
+                    if (tile.isSolid && this.collidesWith(tile)) {
+                        this.vx *= -1;
+                        this.x += this.vx;
+                    }
+                }
+            }
+
+            handleYCollisions() {
+                for (let tile of level.getNearbyTiles(this)) {
+                    if (tile.isSolid && this.collidesWith(tile)) {
+                        if (this.vy > 0) {
+                            this.y = tile.y - this.h;
+                            this.vy = 0;
+                        }
+                    }
+                }
+            }
+
+            draw() {
+                if (!this.active) return;
+                image(assets.powerUp, this.x, this.y, this.w, this.h);
+            }
+        }
+
+        class Level {
+            constructor(layout) {
+                this.tiles = [];
+                this.enemies = [];
+                this.items = [];
+                for (let row = 0; row < layout.length; row++) {
+                    for (let col = 0; col < layout[row].length; col++) {
+                        let char = layout[row][col];
+                        let x = col * TILE_SIZE;
+                        let y = row * TILE_SIZE;
+                        if (['G', 'B', '?', 'P', 'F'].includes(char)) {
+                            let t = new Tile(x, y, char);
+                            if (char === 'P' || char === 'F') t.isSolid = false;
+                            this.tiles.push(t);
+                        } else if (char === 'H') {
+                            this.enemies.push(new Enemy(x, y));
+                        }
+                    }
+                }
+            }
+
+            getNearbyTiles(entity) {
+                return this.tiles.filter(t => t.isSolid && dist(t.x, t.y, entity.x, entity.y) < TILE_SIZE * 5);
+            }
+
+            draw() {
+                for (let tile of this.tiles) tile.draw();
+                for (let enemy of this.enemies) enemy.draw();
+                for (let item of this.items) item.draw();
+            }
+        }
+
+        let gameState = 'START';
+        let player;
+        let level;
+        let cameraX = 0;
+        let levelWidth = 0;
+        let levelHeight = 0;
+
+        let isLeftPressed = false;
+        let isRightPressed = false;
+
+        const LEVEL_LAYOUT = [
+            "                                                                                                                                            ",
+            "                                                                                                                                            ",
+            "                                                                                                                                            ",
+            "                                                                                                                                            ",
+            "                                                                                                                                            ",
+            "              BBB                                                                                                                           ",
+            "       ??    B?B?B                                                                                                                          ",
+            "                                     H                                                                                                      ",
+            "                                   GGGGG                                                                                                    ",
+            "                                                                                                                       P                    ",
+            "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGG    GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGPFFGGGGGGGGGGGGGGGGGG",
+            "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDD    DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
+        ];
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            generateAssets();
+            try { setupSounds(); } catch (e) { console.error(e); }
+            resetGame();
+        }
+
+        function resetGame() {
+            level = new Level(LEVEL_LAYOUT);
+            levelWidth = LEVEL_LAYOUT[0].length * TILE_SIZE;
+            levelHeight = LEVEL_LAYOUT.length * TILE_SIZE;
+            player = new Player(100, 100);
+            cameraX = 0;
+        }
+
+        function draw() {
+            background(135, 206, 235);
+
+            if (gameState === 'START') {
+                drawMenu();
+            } else if (gameState === 'PLAYING') {
+                handleMobileInput();
+                updateGame();
+                drawGame();
+                drawUI();
+                drawMobileControls();
+            } else if (gameState === 'GAMEOVER') {
+                drawGameOver();
+            } else if (gameState === 'WIN') {
+                drawWin();
+            }
+        }
+
+        function drawMenu() {
+            textAlign(CENTER, CENTER);
+            fill(255);
+            textSize(40);
+            text("FOX PLATFORMER", width/2, height/2 - 40);
+            textSize(20);
+            text("Tap or Press Any Key to Start", width/2, height/2 + 20);
+            textSize(14);
+            text("ARROWS to Move, SPACE to Jump", width/2, height/2 + 60);
+        }
+
+        function drawGameOver() {
+            background(0);
+            textAlign(CENTER, CENTER);
+            fill(255, 0, 0);
+            textSize(40);
+            text("GAME OVER", width/2, height/2);
+            fill(255);
+            textSize(20);
+            text("Tap to Restart", width/2, height/2 + 50);
+        }
+
+        function drawWin() {
+            textAlign(CENTER, CENTER);
+            fill(255, 215, 0);
+            textSize(40);
+            text("YOU WIN!", width/2, height/2);
+            fill(255);
+            textSize(20);
+            text("Tap to Play Again", width/2, height/2 + 50);
+        }
+
+        function drawUI() {
+            fill(255);
+            textSize(20);
+            textAlign(LEFT, TOP);
+            text(`LIVES: ${player.lives}`, 20, 20);
+        }
+
+        function updateGame() {
+            player.update();
+            for (let enemy of level.enemies) {
+                enemy.update();
+                if (enemy.active && player.collidesWith(enemy)) {
+                    if (player.vy > 0 && (player.y + player.h - player.vy) <= enemy.y) {
+                        enemy.active = false;
+                        player.vy = JUMP_FORCE / 1.5;
+                        playStompSound();
+                    } else {
+                        player.hit();
+                    }
+                }
+            }
+
+            for (let item of level.items) {
+                item.update();
+                if (item.active && player.collidesWith(item)) {
+                    item.active = false;
+                    player.isSuper = true;
+                    player.h = 56;
+                    player.y -= 16;
+                    playPowerUpSound();
+                }
+            }
+
+            for (let tile of level.tiles) {
+                if ((tile.type === 'F' || tile.type === 'P') && player.collidesWith(tile)) {
+                    gameState = 'WIN';
+                    playWinSound();
+                }
+            }
+
+            cameraX = lerp(cameraX, player.x - width/2, 0.1);
+            cameraX = constrain(cameraX, 0, levelWidth - width);
+        }
+
+        function drawGame() {
+            push();
+            translate(-cameraX, 0);
+            level.draw();
+            player.draw();
+            pop();
+        }
+
+        function drawMobileControls() {
+            if (!('ontouchstart' in window) && !window.matchMedia("(pointer: coarse)").matches) return;
+
+            fill(255, 100);
+            noStroke();
+            rect(20, height - 100, 70, 70, 10);
+            rect(110, height - 100, 70, 70, 10);
+            rect(width - 90, height - 100, 70, 70, 10);
+
+            fill(255);
+            textAlign(CENTER, CENTER);
+            textSize(30);
+            text("←", 55, height - 65);
+            text("→", 145, height - 65);
+            text("↑", width - 55, height - 65);
+        }
+
+        function handleInput() {
+            if (getAudioContext().state !== 'running') getAudioContext().resume();
+            if (gameState === 'START' || gameState === 'GAMEOVER' || gameState === 'WIN') {
+                gameState = 'PLAYING';
+                resetGame();
+                return;
+            }
+        }
+
+        function keyPressed() {
+            if (gameState === 'PLAYING') {
+                if (key === ' ' || keyCode === UP_ARROW) {
+                    player.jump();
+                }
+            } else {
+                handleInput();
+            }
+        }
+
+        function mousePressed() {
+            if (gameState !== 'PLAYING') {
+                handleInput();
+            }
+        }
+
+        function touchStarted() {
+            if (gameState !== 'PLAYING') {
+                handleInput();
+            }
+            return false;
+        }
+
+        function handleMobileInput() {
+            isLeftPressed = false;
+            isRightPressed = false;
+            for (let t of touches) {
+                if (t.y > height - 150) {
+                    if (t.x < 100) isLeftPressed = true;
+                    else if (t.x < 200) isRightPressed = true;
+                    else if (t.x > width - 150) player.jump();
+                }
+            }
+            if (mouseIsPressed && mouseY > height - 150) {
+                if (mouseX < 100) isLeftPressed = true;
+                else if (mouseX < 200) isRightPressed = true;
+                else if (mouseX > width - 150) player.jump();
+            }
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+    </script>
+</body>
+</html>
