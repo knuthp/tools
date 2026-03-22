@@ -17,6 +17,7 @@ export default [
                 ...globals.node,
                 deck: "readonly",
                 maplibregl: "readonly",
+                d3: "readonly",
                 // p5.js globals
                 setup: "readonly",
                 draw: "readonly",
