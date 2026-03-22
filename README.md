@@ -12,6 +12,7 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Sporet vehicles Gemini](./vehicles_gemini.html) Show cross country track prepping vehicles. Built with Google Gemini
 * [Oslo Air Traffic](./oslo_planes.html) Live aircraft tracking around Oslo using adsb.lol API.
 * [Entur SIRI-Lite Real-Time Map](./entur_siri_lite.html) Real-time public transport vehicles in Norway using Entur API.
+* [Entur Stops Map](./entur_stops_deckgl.html) Map of transit stops loaded from Parquet using DuckDB-Wasm and Deck.gl.
 * [Entur GTFS to GeoParquet](./python/entur_gtfs_to_geoparquet.py) Python script to download Entur GTFS and convert to (Geo)Parquet. Run with `uv run python/entur_gtfs_to_geoparquet.py`.
 
 ## Games
