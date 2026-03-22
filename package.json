@@ -4,11 +4,14 @@
   "description": "Mischellaneous HTML+JavaScript or python script tools",
   "type": "module",
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
   },
   "devDependencies": {
     "eslint": "^9.39.4",
     "eslint-plugin-html": "^8.1.4",
-    "globals": "^17.4.0"
+    "globals": "^17.4.0",
+    "wrangler": "^4.76.0"
   }
 }
