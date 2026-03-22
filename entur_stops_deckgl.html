@@ -45,7 +45,7 @@
     <div id="tooltip"></div>
 
     <script type="module">
-        import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm';
+        import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm';
 
         const loadingEl = document.getElementById('loading');
 
@@ -65,13 +65,11 @@
         }
 
         async function loadStops(db) {
-            loadingEl.innerText = 'Fetching Parquet data...';
             const conn = await db.connect();
-            const dataUrl = new URL('data/stops.parquet', window.location.href).href;
-            await db.registerFileURL('stops.parquet', dataUrl, duckdb.DuckDBDataProtocol.HTTP, false);
 
             loadingEl.innerText = 'Querying stops...';
-            const res = await conn.query(`SELECT stop_id, stop_name, stop_lat, stop_lon FROM 'stops.parquet'`);
+            conn.query("INSTALL httpfs; LOAD httpfs;")
+            const res = await conn.query(`SELECT stop_id, stop_name, stop_lat, stop_lon FROM 'hf://datasets/knuthp/GTFS_Entur/stops.parquet';`);
 
             // res is an Apache Arrow table
             const table = res.toArray().map(row => {
