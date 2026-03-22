@@ -1,0 +1,510 @@
+{
+  "name": "David Martinez",
+  "born": "2014",
+  "death": "Present",
+  "places": [
+    "Toronto",
+    "Chicago"
+  ],
+  "father": {
+    "name": "Patricia Martin",
+    "born": "1981",
+    "death": "Present",
+    "places": [
+      "San Francisco",
+      "Seattle"
+    ],
+    "father": {
+      "name": "Patricia Moore",
+      "born": "1952",
+      "death": "Present",
+      "places": [
+        "Rome",
+        "New York"
+      ],
+      "father": {
+        "name": "Richard Lopez",
+        "born": "1924",
+        "death": "1984",
+        "places": [
+          "Boston",
+          "Denver",
+          "Seattle"
+        ],
+        "father": {
+          "name": "John Jackson",
+          "born": "1896",
+          "death": "1977",
+          "places": [
+            "New York",
+            "Denver",
+            "Boston"
+          ],
+          "father": {
+            "name": "Robert Lopez",
+            "born": "1853",
+            "death": "1940",
+            "places": [
+              "Denver",
+              "Chicago"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Jennifer Martin",
+            "born": "1861",
+            "death": "1927",
+            "places": [
+              "Oslo"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "David Moore",
+          "born": "1880",
+          "death": "1974",
+          "places": [
+            "Chicago"
+          ],
+          "father": {
+            "name": "Elizabeth Wilson",
+            "born": "1850",
+            "death": "1928",
+            "places": [
+              "Seattle"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Jennifer Smith",
+            "born": "1869",
+            "death": "1953",
+            "places": [
+              "Chicago"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      },
+      "mother": {
+        "name": "Elizabeth Smith",
+        "born": "1924",
+        "death": "2014",
+        "places": [
+          "Boston",
+          "Denver"
+        ],
+        "father": {
+          "name": "Barbara Lopez",
+          "born": "1886",
+          "death": "1949",
+          "places": [
+            "Sydney",
+            "Berlin"
+          ],
+          "father": null,
+          "mother": {
+            "name": "William Hernandez",
+            "born": "1869",
+            "death": "1930",
+            "places": [
+              "Boston"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "Michael Jones",
+          "born": "1891",
+          "death": "1976",
+          "places": [
+            "San Francisco",
+            "Austin"
+          ],
+          "father": {
+            "name": "James Johnson",
+            "born": "1857",
+            "death": "1929",
+            "places": [
+              "Berlin",
+              "Austin",
+              "New York"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Christopher Johnson",
+            "born": "1860",
+            "death": "1955",
+            "places": [
+              "Austin",
+              "Oslo"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      }
+    },
+    "mother": {
+      "name": "John Anderson",
+      "born": "1941",
+      "death": "2021",
+      "places": [
+        "Madrid",
+        "Boston",
+        "Sydney"
+      ],
+      "father": {
+        "name": "Mary Davis",
+        "born": "1914",
+        "death": "2004",
+        "places": [
+          "Toronto",
+          "Sydney"
+        ],
+        "father": {
+          "name": "Barbara Hernandez",
+          "born": "1900",
+          "death": "1964",
+          "places": [
+            "Chicago",
+            "Denver",
+            "Tokyo"
+          ],
+          "father": null,
+          "mother": {
+            "name": "Susan Martin",
+            "born": "1860",
+            "death": "1951",
+            "places": [
+              "Chicago",
+              "Sydney",
+              "Berlin"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "Patricia Lopez",
+          "born": "1892",
+          "death": "1955",
+          "places": [
+            "Toronto"
+          ],
+          "father": {
+            "name": "John Martin",
+            "born": "1867",
+            "death": "1937",
+            "places": [
+              "Chicago"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Sarah Rodriguez",
+            "born": "1868",
+            "death": "1946",
+            "places": [
+              "Seattle"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      },
+      "mother": {
+        "name": "Jessica Thomas",
+        "born": "1921",
+        "death": "1988",
+        "places": [
+          "Tokyo",
+          "London",
+          "Berlin"
+        ],
+        "father": {
+          "name": "Jessica Martinez",
+          "born": "1889",
+          "death": "1955",
+          "places": [
+            "Toronto",
+            "Berlin"
+          ],
+          "father": {
+            "name": "John Williams",
+            "born": "1854",
+            "death": "1939",
+            "places": [
+              "Austin",
+              "Seattle"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Karen Moore",
+            "born": "1850",
+            "death": "1919",
+            "places": [
+              "San Francisco"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "James Martin",
+          "born": "1890",
+          "death": "1982",
+          "places": [
+            "Madrid"
+          ],
+          "father": {
+            "name": "Jennifer Jackson",
+            "born": "1866",
+            "death": "1926",
+            "places": [
+              "Berlin"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Christopher Thomas",
+            "born": "1857",
+            "death": "1946",
+            "places": [
+              "Austin"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      }
+    }
+  },
+  "mother": {
+    "name": "William Taylor",
+    "born": "1982",
+    "death": "Present",
+    "places": [
+      "London",
+      "Oslo",
+      "Berlin"
+    ],
+    "father": {
+      "name": "Mary Martin",
+      "born": "1940",
+      "death": "2019",
+      "places": [
+        "Chicago",
+        "Rome",
+        "Tokyo"
+      ],
+      "father": null,
+      "mother": {
+        "name": "Mary Johnson",
+        "born": "1929",
+        "death": "1991",
+        "places": [
+          "Tokyo"
+        ],
+        "father": null,
+        "mother": {
+          "name": "Elizabeth Martinez",
+          "born": "1898",
+          "death": "1967",
+          "places": [
+            "Seattle"
+          ],
+          "father": {
+            "name": "Mary Thomas",
+            "born": "1861",
+            "death": "1950",
+            "places": [
+              "Oslo"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "John Moore",
+            "born": "1854",
+            "death": "1919",
+            "places": [
+              "Paris",
+              "Chicago"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      }
+    },
+    "mother": {
+      "name": "William Thomas",
+      "born": "1944",
+      "death": "2008",
+      "places": [
+        "Paris",
+        "Sydney",
+        "Toronto"
+      ],
+      "father": {
+        "name": "David Miller",
+        "born": "1914",
+        "death": "1981",
+        "places": [
+          "Madrid",
+          "New York"
+        ],
+        "father": {
+          "name": "Susan Williams",
+          "born": "1881",
+          "death": "1973",
+          "places": [
+            "Toronto",
+            "Boston"
+          ],
+          "father": {
+            "name": "John Moore",
+            "born": "1855",
+            "death": "1948",
+            "places": [
+              "Oslo",
+              "Denver"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "David Brown",
+            "born": "1854",
+            "death": "1941",
+            "places": [
+              "Oslo",
+              "Denver"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "Elizabeth Rodriguez",
+          "born": "1895",
+          "death": "1979",
+          "places": [
+            "Boston",
+            "Seattle",
+            "Madrid"
+          ],
+          "father": {
+            "name": "Jessica Rodriguez",
+            "born": "1859",
+            "death": "1954",
+            "places": [
+              "Austin",
+              "Seattle",
+              "New York"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Sarah Wilson",
+            "born": "1866",
+            "death": "1956",
+            "places": [
+              "Paris",
+              "Toronto"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      },
+      "mother": {
+        "name": "Elizabeth Davis",
+        "born": "1921",
+        "death": "1984",
+        "places": [
+          "Rome",
+          "Boston",
+          "Seattle"
+        ],
+        "father": {
+          "name": "William Gonzalez",
+          "born": "1881",
+          "death": "1969",
+          "places": [
+            "Sydney",
+            "Paris",
+            "Denver"
+          ],
+          "father": {
+            "name": "Jennifer Gonzalez",
+            "born": "1866",
+            "death": "1943",
+            "places": [
+              "London",
+              "Toronto",
+              "Madrid"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "James Martinez",
+            "born": "1866",
+            "death": "1941",
+            "places": [
+              "Oslo"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "Richard Gonzalez",
+          "born": "1883",
+          "death": "1960",
+          "places": [
+            "Seattle",
+            "Rome",
+            "Chicago"
+          ],
+          "father": {
+            "name": "John Martinez",
+            "born": "1858",
+            "death": "1936",
+            "places": [
+              "Sydney",
+              "Chicago"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Patricia Taylor",
+            "born": "1862",
+            "death": "1927",
+            "places": [
+              "Rome"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,489 @@
+{
+  "name": "Sarah Johnson",
+  "born": "2004",
+  "death": "Present",
+  "places": [
+    "San Francisco",
+    "London",
+    "Toronto"
+  ],
+  "father": {
+    "name": "Joseph Garcia",
+    "born": "1972",
+    "death": "Present",
+    "places": [
+      "New York",
+      "Sydney",
+      "Madrid"
+    ],
+    "father": {
+      "name": "Linda Anderson",
+      "born": "1944",
+      "death": "2018",
+      "places": [
+        "Oslo",
+        "Sydney",
+        "Toronto"
+      ],
+      "father": {
+        "name": "Sarah Williams",
+        "born": "1927",
+        "death": "1988",
+        "places": [
+          "Oslo",
+          "San Francisco",
+          "Seattle"
+        ],
+        "father": {
+          "name": "Richard Garcia",
+          "born": "1882",
+          "death": "1962",
+          "places": [
+            "Toronto",
+            "Tokyo",
+            "Seattle"
+          ],
+          "father": {
+            "name": "Karen Rodriguez",
+            "born": "1865",
+            "death": "1925",
+            "places": [
+              "Tokyo",
+              "Paris",
+              "Sydney"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Jennifer Johnson",
+            "born": "1866",
+            "death": "1959",
+            "places": [
+              "Tokyo"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "Susan Brown",
+          "born": "1900",
+          "death": "1992",
+          "places": [
+            "Berlin",
+            "San Francisco"
+          ],
+          "father": {
+            "name": "Joseph Williams",
+            "born": "1860",
+            "death": "1950",
+            "places": [
+              "Chicago"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": null
+        }
+      },
+      "mother": {
+        "name": "Linda Wilson",
+        "born": "1917",
+        "death": "2001",
+        "places": [
+          "London"
+        ],
+        "father": null,
+        "mother": {
+          "name": "Patricia Brown",
+          "born": "1896",
+          "death": "1987",
+          "places": [
+            "Sydney"
+          ],
+          "father": null,
+          "mother": {
+            "name": "Barbara Johnson",
+            "born": "1860",
+            "death": "1931",
+            "places": [
+              "Paris",
+              "Sydney",
+              "Denver"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      }
+    },
+    "mother": {
+      "name": "Linda Williams",
+      "born": "1954",
+      "death": "Present",
+      "places": [
+        "London",
+        "Austin",
+        "San Francisco"
+      ],
+      "father": {
+        "name": "Karen Anderson",
+        "born": "1913",
+        "death": "2005",
+        "places": [
+          "Denver"
+        ],
+        "father": {
+          "name": "Thomas Garcia",
+          "born": "1895",
+          "death": "1955",
+          "places": [
+            "Seattle",
+            "Denver"
+          ],
+          "father": {
+            "name": "Jessica Hernandez",
+            "born": "1868",
+            "death": "1936",
+            "places": [
+              "New York",
+              "San Francisco",
+              "Rome"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Patricia Rodriguez",
+            "born": "1868",
+            "death": "1942",
+            "places": [
+              "Oslo",
+              "New York"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "Thomas Wilson",
+          "born": "1898",
+          "death": "1962",
+          "places": [
+            "Sydney"
+          ],
+          "father": {
+            "name": "William Johnson",
+            "born": "1858",
+            "death": "1936",
+            "places": [
+              "Toronto",
+              "Austin",
+              "Berlin"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "John Jackson",
+            "born": "1858",
+            "death": "1939",
+            "places": [
+              "Toronto"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      },
+      "mother": {
+        "name": "Richard Jones",
+        "born": "1920",
+        "death": "2007",
+        "places": [
+          "Berlin"
+        ],
+        "father": {
+          "name": "Barbara Hernandez",
+          "born": "1896",
+          "death": "1977",
+          "places": [
+            "Berlin",
+            "Oslo"
+          ],
+          "father": {
+            "name": "Robert Taylor",
+            "born": "1869",
+            "death": "1929",
+            "places": [
+              "Sydney",
+              "Oslo",
+              "Tokyo"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "James Lopez",
+            "born": "1855",
+            "death": "1941",
+            "places": [
+              "Paris"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "Mary Thomas",
+          "born": "1883",
+          "death": "1970",
+          "places": [
+            "Austin",
+            "Boston"
+          ],
+          "father": {
+            "name": "Linda Thomas",
+            "born": "1858",
+            "death": "1930",
+            "places": [
+              "London"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Susan Davis",
+            "born": "1868",
+            "death": "1930",
+            "places": [
+              "Paris",
+              "Oslo",
+              "San Francisco"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      }
+    }
+  },
+  "mother": {
+    "name": "Sarah Wilson",
+    "born": "1984",
+    "death": "Present",
+    "places": [
+      "San Francisco",
+      "Seattle",
+      "Rome"
+    ],
+    "father": {
+      "name": "David Gonzalez",
+      "born": "1948",
+      "death": "Present",
+      "places": [
+        "Denver",
+        "Sydney",
+        "Austin"
+      ],
+      "father": {
+        "name": "Susan Jones",
+        "born": "1911",
+        "death": "1975",
+        "places": [
+          "Chicago",
+          "Seattle"
+        ],
+        "father": {
+          "name": "Elizabeth Miller",
+          "born": "1889",
+          "death": "1978",
+          "places": [
+            "Seattle",
+            "New York"
+          ],
+          "father": {
+            "name": "James Rodriguez",
+            "born": "1865",
+            "death": "1946",
+            "places": [
+              "Chicago",
+              "London"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Sarah Thomas",
+            "born": "1857",
+            "death": "1933",
+            "places": [
+              "Oslo"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "Joseph Gonzalez",
+          "born": "1880",
+          "death": "1969",
+          "places": [
+            "Sydney",
+            "Berlin"
+          ],
+          "father": {
+            "name": "Mary Martinez",
+            "born": "1853",
+            "death": "1916",
+            "places": [
+              "Rome"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Michael Thomas",
+            "born": "1865",
+            "death": "1925",
+            "places": [
+              "Berlin",
+              "Austin",
+              "Oslo"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      },
+      "mother": null
+    },
+    "mother": {
+      "name": "John Hernandez",
+      "born": "1952",
+      "death": "Present",
+      "places": [
+        "Sydney",
+        "San Francisco",
+        "Tokyo"
+      ],
+      "father": {
+        "name": "Thomas Rodriguez",
+        "born": "1920",
+        "death": "2010",
+        "places": [
+          "New York",
+          "San Francisco"
+        ],
+        "father": {
+          "name": "Barbara Williams",
+          "born": "1891",
+          "death": "1983",
+          "places": [
+            "Boston",
+            "Paris",
+            "Berlin"
+          ],
+          "father": {
+            "name": "Elizabeth Wilson",
+            "born": "1861",
+            "death": "1955",
+            "places": [
+              "Boston",
+              "New York"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Linda Brown",
+            "born": "1864",
+            "death": "1954",
+            "places": [
+              "Austin",
+              "Denver",
+              "Rome"
+            ],
+            "father": null,
+            "mother": null
+          }
+        },
+        "mother": {
+          "name": "David Davis",
+          "born": "1883",
+          "death": "1968",
+          "places": [
+            "Madrid",
+            "Boston"
+          ],
+          "father": {
+            "name": "Karen Taylor",
+            "born": "1853",
+            "death": "1936",
+            "places": [
+              "Chicago",
+              "Rome",
+              "Austin"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Sarah Wilson",
+            "born": "1852",
+            "death": "1923",
+            "places": [
+              "Austin",
+              "Berlin",
+              "Madrid"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      },
+      "mother": {
+        "name": "Linda Brown",
+        "born": "1928",
+        "death": "2008",
+        "places": [
+          "Paris"
+        ],
+        "father": null,
+        "mother": {
+          "name": "Thomas Moore",
+          "born": "1890",
+          "death": "1951",
+          "places": [
+            "Sydney",
+            "London"
+          ],
+          "father": {
+            "name": "Thomas Miller",
+            "born": "1860",
+            "death": "1954",
+            "places": [
+              "Oslo",
+              "Tokyo",
+              "Seattle"
+            ],
+            "father": null,
+            "mother": null
+          },
+          "mother": {
+            "name": "Elizabeth Garcia",
+            "born": "1861",
+            "death": "1952",
+            "places": [
+              "San Francisco",
+              "Toronto"
+            ],
+            "father": null,
+            "mother": null
+          }
+        }
+      }
+    }
+  }
+}
