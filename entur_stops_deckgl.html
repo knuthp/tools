@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Entur Stops Map</title>
-    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
     <script src="https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.css" rel="stylesheet" />
     <style>
@@ -46,6 +45,9 @@
 
     <script type="module">
         import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm';
+        import * as arrow from 'https://cdn.jsdelivr.net/npm/apache-arrow@17.0.0/+esm';
+        import { MapboxOverlay } from 'https://esm.sh/@deck.gl/mapbox@9.0.38';
+        import { GeoArrowScatterplotLayer } from 'https://esm.sh/@geoarrow/deck.gl-layers@0.3.1?bundle-deps';
 
         const loadingEl = document.getElementById('loading');
 
@@ -68,14 +70,8 @@
             const conn = await db.connect();
 
             loadingEl.innerText = 'Querying stops...';
-            conn.query("INSTALL httpfs; LOAD httpfs;")
-            const res = await conn.query(`SELECT stop_id, stop_name, stop_lat, stop_lon FROM 'hf://datasets/knuthp/GTFS_Entur/stops.parquet';`);
-
-            // res is an Apache Arrow table
-            const table = res.toArray().map(row => {
-                // row in Arrow can be accessed as an object
-                return row.toJSON();
-            });
+            await conn.query("INSTALL httpfs; LOAD httpfs;");
+            const table = await conn.query(`SELECT stop_id, stop_name, stop_lat, stop_lon FROM 'hf://datasets/knuthp/GTFS_Entur/stops.parquet';`);
 
             await conn.close();
             return table;
@@ -88,35 +84,39 @@
             zoom: 12
         });
 
-        const deckOverlay = new deck.MapboxOverlay({
+        const deckOverlay = new MapboxOverlay({
             interleaved: false,
             layers: []
         });
 
         map.addControl(deckOverlay);
 
-        function renderLayers(data) {
-            const scatterplotLayer = new deck.ScatterplotLayer({
+        function renderLayers(table, positionVector) {
+            const scatterplotLayer = new GeoArrowScatterplotLayer({
                 id: 'stops-layer',
-                data: data,
-                getPosition: d => [d.stop_lon, d.stop_lat],
+                data: table,
+                getPosition: positionVector,
                 getRadius: 30,
                 getFillColor: [0, 120, 255, 200],
                 getLineColor: [255, 255, 255],
-                getLineWidth: 2,
+                getLineWidth: 1,
                 stroked: true,
                 filled: true,
                 radiusScale: 1,
                 radiusMinPixels: 3,
-                radiusMaxPixels: 15,
+                radiusMaxPixels: 100,
                 pickable: true,
+                autoHighlight: true,
+                highlightColor: [255, 255, 0, 255],
                 onHover: info => {
                     const tooltip = document.getElementById('tooltip');
-                    if (info.object) {
+                    if (info && info.index !== -1 && info.object) {
+                        // In GeoArrow layers, info.object is often the proxy for the row
+                        const row = info.object;
                         tooltip.innerHTML = `
-                            <div class="tooltip-title">${info.object.stop_name}</div>
-                            <div class="tooltip-detail">ID: ${info.object.stop_id}</div>
-                            <div class="tooltip-detail">Coord: ${Number(info.object.stop_lat).toFixed(4)}, ${Number(info.object.stop_lon).toFixed(4)}</div>
+                            <div class="tooltip-title">${row.stop_name}</div>
+                            <div class="tooltip-detail">ID: ${row.stop_id}</div>
+                            <div class="tooltip-detail">Coord: ${Number(row.stop_lat).toFixed(4)}, ${Number(row.stop_lon).toFixed(4)}</div>
                         `;
                         tooltip.style.display = 'block';
                         tooltip.style.left = `${info.x + 10}px`;
@@ -135,8 +135,48 @@
         async function main() {
             try {
                 const db = await initDuckDB();
-                const stops = await loadStops(db);
-                renderLayers(stops);
+                const table = await loadStops(db);
+
+                loadingEl.innerText = 'Preparing geometry...';
+                const startTime = performance.now();
+
+                // Interleave lon/lat into GeoArrow Point format (FixedSizeList of 2 floats)
+                // We process it batch-by-batch to match the original Arrow table's internal structure
+                const positionChunks = [];
+                const lonColumn = table.getChild('stop_lon');
+                const latColumn = table.getChild('stop_lat');
+
+                for (let i = 0; i < lonColumn.data.length; i++) {
+                    const data = lonColumn.data[i];
+                    const lons = data.values;
+                    const lats = latColumn.data[i].values;
+                    const length = data.length;
+                    const offset = data.offset;
+
+                    // Create interleaved Float32Array [lon0, lat0, lon1, lat1, ...]
+                    const interleaved = new Float32Array(length * 2);
+                    for (let j = 0; j < length; j++) {
+                        interleaved[j * 2] = lons[j + offset];
+                        interleaved[j * 2 + 1] = lats[j + offset];
+                    }
+
+                    // Wrap in Arrow Data structures
+                    const innerData = arrow.makeData({
+                        type: new arrow.Float32(),
+                        length: length * 2,
+                        values: interleaved
+                    });
+
+                    positionChunks.push(arrow.makeData({
+                        type: new arrow.FixedSizeList(2, new arrow.Field('xy', new arrow.Float32())),
+                        length: length,
+                        children: [innerData]
+                    }));
+                }
+                const positionVector = new arrow.Vector(positionChunks);
+                console.log(`Geometry preparation took ${performance.now() - startTime}ms for ${table.numRows} rows`);
+
+                renderLayers(table, positionVector);
                 loadingEl.style.display = 'none';
             } catch (err) {
                 console.error('Error:', err);
