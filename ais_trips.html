@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIS Trips Animation - March 16, 2024</title>
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0a0e14; color: #fff; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        #overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: rgba(10, 14, 20, 0.8);
+            padding: 15px 20px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            border: 1px solid #1e2d3d;
+            pointer-events: none;
+        }
+        #overlay h1 { margin: 0; font-size: 18px; color: #00e5ff; }
+        #overlay p { margin: 5px 0 0; font-size: 14px; color: #4a6070; }
+        #status { margin-top: 10px; font-family: monospace; font-size: 12px; color: #c8d8e8; }
+        #time-display {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1001;
+            background: rgba(10, 14, 20, 0.8);
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-family: 'Space Mono', monospace;
+            font-size: 24px;
+            color: #00e5ff;
+            border: 1px solid #1e2d3d;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            z-index: 1001;
+            background: rgba(10, 14, 20, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            border: 1px solid #1e2d3d;
+            font-size: 12px;
+            color: #c8d8e8;
+        }
+        .control-row { margin-bottom: 10px; }
+        .control-row:last-child { margin-bottom: 0; }
+        label { display: block; margin-bottom: 5px; color: #4a6070; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="overlay">
+        <h1>AIS Trips Animation</h1>
+        <p>March 16, 2024</p>
+        <div id="status">Initializing database...</div>
+    </div>
+    <div id="time-display" style="display: none;">00:00:00</div>
+    <div id="controls" style="display: none;">
+        <div class="control-row">
+            <label for="speed">Animation Speed</label>
+            <input type="range" id="speed" min="10" max="3600" step="10" value="600">
+        </div>
+        <div class="control-row">
+            <label for="trail">Trail Length (min)</label>
+            <input type="range" id="trail" min="1" max="120" step="1" value="30">
+        </div>
+    </div>
+
+    <script type="module">
+        import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm';
+
+        const statusEl = document.getElementById('status');
+        const timeDisplay = document.getElementById('time-display');
+        const speedInput = document.getElementById('speed');
+        const trailInput = document.getElementById('trail');
+        const controlsEl = document.getElementById('controls');
+
+        const DAY_SECONDS = 24 * 60 * 60;
+
+        let trailLengthSeconds = 30 * 60;
+        let animationSpeed = 600;
+        let currentTime = 0;
+        let tripsData = [];
+        let deckOverlay;
+
+        async function initDuckDB() {
+            statusEl.innerText = 'Loading WebAssembly...';
+            const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
+            const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+            const worker_url = URL.createObjectURL(
+                new Blob([`importScripts("${bundle.mainWorker}");`], {type: 'text/javascript'})
+            );
+            const worker = new Worker(worker_url);
+            const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
+            await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+            URL.revokeObjectURL(worker_url);
+            return db;
+        }
+
+        async function loadData(db) {
+            const conn = await db.connect();
+            statusEl.innerText = 'Fetching week 11 AIS data...';
+            await conn.query("INSTALL httpfs; LOAD httpfs;");
+
+            const query = `
+                SELECT
+                    mmsi,
+                    list(long ORDER BY timestamp) as lons,
+                    list(lat ORDER BY timestamp) as lats,
+                    list(epoch(timestamp) - epoch('2024-03-16 00:00:00'::TIMESTAMP) ORDER BY timestamp) as ts
+                FROM 'https://huggingface.co/datasets/knuthp/ais_examples/resolve/main/pos/historic_position_2024_w11.parquet'
+                WHERE timestamp >= '2024-03-16 00:00:00' AND timestamp < '2024-03-17 00:00:00'
+                GROUP BY mmsi
+            `;
+
+            statusEl.innerText = 'Querying March 16 trajectories...';
+            const res = await conn.query(query);
+
+            tripsData = res.toArray().map(row => {
+                const r = row.toJSON();
+                const lons = Array.from(r.lons);
+                const lats = Array.from(r.lats);
+                const ts = Array.from(r.ts);
+                const path = lons.map((lon, i) => [lon, lats[i]]);
+                return {
+                    vendor: r.mmsi,
+                    path: path,
+                    timestamps: ts
+                };
+            });
+
+            // Calculate bounds - Filter out invalid/extreme coordinates
+            statusEl.innerText = 'Calculating viewport...';
+            const boundsRes = await conn.query(`
+                SELECT MIN(long) as minLon, MIN(lat) as minLat, MAX(long) as maxLon, MAX(lat) as maxLat
+                FROM 'https://huggingface.co/datasets/knuthp/ais_examples/resolve/main/pos/historic_position_2024_w11.parquet'
+                WHERE timestamp >= '2024-03-16 00:00:00' AND timestamp < '2024-03-17 00:00:00'
+                  AND long BETWEEN -180 AND 180 AND lat BETWEEN -90 AND 90
+            `);
+            const bounds = boundsRes.get(0).toJSON();
+
+            await conn.close();
+            return bounds;
+        }
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+            center: [10, 60],
+            zoom: 5,
+            antialias: true
+        });
+
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+            const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+            const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function animate() {
+            animationSpeed = parseFloat(speedInput.value);
+            trailLengthSeconds = parseFloat(trailInput.value) * 60;
+
+            currentTime = (currentTime + (animationSpeed / 60)) % DAY_SECONDS;
+            timeDisplay.innerText = formatTime(currentTime);
+
+            const tripsLayer = new deck.TripsLayer({
+                id: 'trips-layer',
+                data: tripsData,
+                getPath: d => d.path,
+                getTimestamps: d => d.timestamps,
+                getColor: [0, 229, 255],
+                opacity: 0.8,
+                widthMinPixels: 2,
+                rounded: true,
+                trailLength: trailLengthSeconds,
+                currentTime: currentTime,
+                shadowEnabled: false
+            });
+
+            deckOverlay.setProps({ layers: [tripsLayer] });
+            requestAnimationFrame(animate);
+        }
+
+        async function main() {
+            try {
+                const db = await initDuckDB();
+                const bounds = await loadData(db);
+
+                deckOverlay = new deck.MapboxOverlay({
+                    interleaved: false,
+                    layers: []
+                });
+                map.addControl(deckOverlay);
+
+                // Fit map to bounds
+                map.fitBounds([
+                    [bounds.minLon, bounds.minLat],
+                    [bounds.maxLon, bounds.maxLat]
+                ], { padding: 50 });
+
+                statusEl.innerText = `Loaded ${tripsData.length} vessels.`;
+                timeDisplay.style.display = 'block';
+                controlsEl.style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('overlay').style.opacity = '0.5';
+                }, 3000);
+
+                animate();
+            } catch (err) {
+                console.error('Error:', err);
+                statusEl.innerText = 'Error: ' + err.message;
+                statusEl.style.color = 'red';
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>
