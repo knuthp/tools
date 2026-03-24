@@ -143,13 +143,12 @@
 
             // Calculate bounds - Filter out invalid/extreme coordinates
             statusEl.innerText = 'Calculating viewport...';
-            const boundsRes = await conn.query(`
-                SELECT MIN(long) as minLon, MIN(lat) as minLat, MAX(long) as maxLon, MAX(lat) as maxLat
-                FROM 'https://huggingface.co/datasets/knuthp/ais_examples/resolve/main/pos/historic_position_2024_w11.parquet'
-                WHERE timestamp >= '2024-03-16 00:00:00' AND timestamp < '2024-03-17 00:00:00'
-                  AND long BETWEEN -180 AND 180 AND lat BETWEEN -90 AND 90
-            `);
-            const bounds = boundsRes.get(0).toJSON();
+            const bounds = {
+                minLon: 7.0,
+                minLat:57.0,
+                maxLon: 11.0,
+                maxLat: 60.0,
+            };
 
             await conn.close();
             return bounds;
