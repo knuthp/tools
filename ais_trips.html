@@ -79,7 +79,7 @@
     </div>
 
     <script type="module">
-        import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm';
+        import * as arrow from 'https://cdn.jsdelivr.net/npm/apache-arrow@latest/+esm';
 
         const statusEl = document.getElementById('status');
         const timeDisplay = document.getElementById('time-display');
@@ -95,51 +95,31 @@
         let tripsData = [];
         let deckOverlay;
 
-        async function initDuckDB() {
-            statusEl.innerText = 'Loading WebAssembly...';
-            const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
-            const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
-            const worker_url = URL.createObjectURL(
-                new Blob([`importScripts("${bundle.mainWorker}");`], {type: 'text/javascript'})
-            );
-            const worker = new Worker(worker_url);
-            const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
-            await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
-            URL.revokeObjectURL(worker_url);
-            return db;
-        }
 
-        async function loadData(db) {
-            const conn = await db.connect();
-            statusEl.innerText = 'Fetching week 11 AIS data...';
-            await conn.query("INSTALL httpfs; LOAD httpfs;");
+        async function loadData() {
+            statusEl.innerText = 'Fetching AIS feather file...';
 
-            const query = `
-                SELECT
-                    mmsi,
-                    list(long ORDER BY timestamp) as lons,
-                    list(lat ORDER BY timestamp) as lats,
-                    list(epoch(timestamp) - epoch('2024-03-16 00:00:00'::TIMESTAMP) ORDER BY timestamp) as ts
-                FROM 'https://huggingface.co/datasets/knuthp/ais_examples/resolve/main/pos/historic_position_2024_w11.parquet'
-                WHERE timestamp >= '2024-03-16 00:00:00' AND timestamp < '2024-03-17 00:00:00'
-                GROUP BY mmsi
-            `;
+            const resp = await fetch('data/ais/ais_2024-03-16.feather');
+            if (!resp.ok) throw new Error(`Failed to fetch feather: ${resp.status}`);
+            const buffer = await resp.arrayBuffer();
 
-            statusEl.innerText = 'Querying March 16 trajectories...';
-            const res = await conn.query(query);
+            statusEl.innerText = 'Parsing Arrow data...';
+            const table = arrow.tableFromIPC(buffer);
 
-            tripsData = res.toArray().map(row => {
-                const r = row.toJSON();
-                const lons = Array.from(r.lons);
-                const lats = Array.from(r.lats);
-                const ts = Array.from(r.ts);
-                const path = lons.map((lon, i) => [lon, lats[i]]);
-                return {
-                    vendor: r.mmsi,
-                    path: path,
+            statusEl.innerText = 'Building trajectories...';
+            tripsData = [];
+            for (const row of table) {
+                const lons = Array.from(row.lons);
+                const lats = Array.from(row.lats);
+                const ts   = Array.from(row.ts);
+                tripsData.push({
+                    vendor: row.mmsi,
+                    path: lons.map((lon, i) => [lon, lats[i]]),
                     timestamps: ts
-                };
-            });
+                });
+            }
+
+            statusEl.innerText = `Loaded ${tripsData.length} vessels.`;
 
             // Calculate bounds - Filter out invalid/extreme coordinates
             statusEl.innerText = 'Calculating viewport...';
@@ -150,7 +130,6 @@
                 maxLat: 60.0,
             };
 
-            await conn.close();
             return bounds;
         }
 
@@ -196,8 +175,7 @@
 
         async function main() {
             try {
-                const db = await initDuckDB();
-                const bounds = await loadData(db);
+                const bounds = await loadData();
 
                 deckOverlay = new deck.MapboxOverlay({
                     interleaved: false,
