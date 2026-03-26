@@ -16,6 +16,7 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Entur SIRI-Lite Real-Time Map](./entur_siri_lite.html) Real-time public transport vehicles in Norway using Entur API.
 * [Entur Stops Map](./entur_stops_deckgl.html) Map of transit stops loaded from Parquet using DuckDB-Wasm and Deck.gl.
 * [AIS Trips Animation](./ais_trips.html) Animate a day of AIS vessel traffic using Deck.gl and DuckDB-Wasm.
+* [Entur Trips Animation](./entur_trips.html) Animate a day of Entur vehicle monitoring traffic using Deck.gl and DuckDB-Wasm.
 
 ### Genealogy
 * [Genealogy Tree Viewer](./genealogy_tree.html) A D3.js powered genealogy tree viewer that shows ancestors (parents above children). Supports multiple JSON data files.
