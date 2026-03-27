@@ -7,13 +7,14 @@
 # ///
 
 import sys
+
 import duckdb
 import pyarrow.feather as feather
 
 PARQUET_URL = "hf://datasets/knuthp/entur_vm/*.parquet"
 
 def export_day(date: str, output: str):
-    print(f"Connecting to DuckDB...")
+    print("Connecting to DuckDB...")
     conn = duckdb.connect()
     conn.execute("INSTALL httpfs; LOAD httpfs;")
 

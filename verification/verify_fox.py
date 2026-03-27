@@ -1,8 +1,8 @@
-from playwright.sync_api import sync_playwright
-import os
 import http.server
 import socketserver
 import threading
+
+from playwright.sync_api import sync_playwright
 
 PORT = 8000
 
