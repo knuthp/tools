@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "lint": "eslint .",
-    "deploy": "wrangler deploy",
-    "preview": "wrangler dev"
+    "build": "bash scripts/cf_publish.sh",
+    "deploy": "npm run build && wrangler pages deploy",
+    "preview": "npm run build && wrangler pages dev"
   },
   "devDependencies": {
     "eslint": "^9.39.4",

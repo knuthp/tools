@@ -6,6 +6,8 @@ __pycache__/
 *.png
 node_modules/
 
+_build/
+
 # wrangler files
 .wrangler
 .dev.vars*
