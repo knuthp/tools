@@ -99,7 +99,7 @@
         async function loadData() {
             statusEl.innerText = 'Fetching AIS feather file...';
 
-            const resp = await fetch('data/ais/ais_2024-03-16.feather');
+            const resp = await fetch('https://huggingface.co/datasets/knuthp/ais_examples/resolve/main/arrow/ais_2024-03-16.feather?download=true');
             if (!resp.ok) throw new Error(`Failed to fetch feather: ${resp.status}`);
             const buffer = await resp.arrayBuffer();
 
