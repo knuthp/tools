@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DNT GraphQL Explorer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1e2333;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --accent: #5b8dee;
+    --accent2: #3ecf8e;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --c-object: #5b8dee;
+    --c-input: #3ecf8e;
+    --c-enum: #f59e0b;
+    --c-scalar: #6b7280;
+    --c-union: #f87171;
+    --c-interface: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    height: 44px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  header .logo {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+  header .sep { width: 1px; height: 18px; background: var(--border2); }
+  header .endpoint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    flex: 1;
+  }
+  header .badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(62,207,142,0.12);
+    color: var(--accent2);
+    font-weight: 500;
+  }
+
+  /* Layout */
+  .layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 230px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+  }
+  .sidebar-head {
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-head input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    outline: none;
+  }
+  .sidebar-head input:focus { border-color: var(--accent); }
+  .sidebar-head input::placeholder { color: var(--muted); }
+  .type-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+  }
+  .type-list::-webkit-scrollbar { width: 4px; }
+  .type-list::-webkit-scrollbar-track { background: transparent; }
+  .type-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .type-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    cursor: pointer;
+    border-radius: 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    transition: background 0.1s;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .type-item:hover { background: var(--surface2); color: var(--text); }
+  .type-item.active { background: rgba(91,141,238,0.12); color: var(--accent); }
+  .kind-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .kd-OBJECT { background: var(--c-object); }
+  .kd-INPUT_OBJECT { background: var(--c-input); }
+  .kd-ENUM { background: var(--c-enum); }
+  .kd-SCALAR { background: var(--c-scalar); }
+  .kd-UNION { background: var(--c-union); }
+  .kd-INTERFACE { background: var(--c-interface); }
+  .type-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Legend */
+  .legend {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 10px; color: var(--muted);
+  }
+
+  /* Main area */
+  .main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .tab-btn {
+    padding: 10px 16px;
+    font-size: 12px;
+    font-family: var(--sans);
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s;
+    user-select: none;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Tab panes */
+  .tab-pane { display: none; flex: 1; min-height: 0; overflow: hidden; }
+  .tab-pane.active { display: flex; flex-direction: column; }
+
+  /* Detail pane */
+  .detail-pane {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+  }
+  .detail-pane::-webkit-scrollbar { width: 4px; }
+  .detail-pane::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .detail-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .detail-header h2 {
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .kind-badge {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 10px;
+  }
+  .kb-OBJECT { background: rgba(91,141,238,0.15); color: var(--c-object); }
+  .kb-INPUT_OBJECT { background: rgba(62,207,142,0.12); color: var(--c-input); }
+  .kb-ENUM { background: rgba(245,158,11,0.12); color: var(--c-enum); }
+  .kb-SCALAR { background: rgba(107,114,128,0.15); color: var(--c-scalar); }
+  .kb-UNION { background: rgba(248,113,113,0.12); color: var(--c-union); }
+  .kb-INTERFACE { background: rgba(167,139,250,0.12); color: var(--c-interface); }
+
+  .detail-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    line-height: 1.6;
+  }
+  .fields-table { width: 100%; border-collapse: collapse; }
+  .fields-table tr { border-bottom: 1px solid var(--border); }
+  .fields-table tr:last-child { border-bottom: none; }
+  .fields-table td { padding: 6px 0; vertical-align: top; }
+  .field-name { font-family: var(--mono); font-size: 11.5px; color: var(--accent); min-width: 160px; padding-right: 12px; }
+  .field-type { font-family: var(--mono); font-size: 11px; color: var(--accent2); text-align: right; min-width: 120px; }
+  .field-desc { font-size: 11px; color: var(--muted); padding: 0 12px; font-style: italic; }
+  .field-args { font-size: 10px; color: var(--muted); display: block; margin-top: 2px; }
+  .dep-badge { font-size: 9px; color: var(--danger); margin-left: 4px; }
+  .try-btn {
+    margin-top: 14px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-family: var(--sans);
+    background: rgba(91,141,238,0.1);
+    border: 1px solid rgba(91,141,238,0.3);
+    border-radius: 5px;
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .try-btn:hover { background: rgba(91,141,238,0.2); }
+
+  /* Query runner */
+  .query-runner {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .query-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .query-top select {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+  }
+  .query-top select:focus { border-color: var(--accent); }
+  .run-btn {
+    padding: 5px 16px;
+    font-size: 12px;
+    font-family: var(--sans);
+    font-weight: 500;
+    background: var(--accent);
+    border: none;
+    border-radius: 5px;
+    color: #fff;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    margin-left: auto;
+  }
+  .run-btn:hover { opacity: 0.85; }
+  .run-btn:active { opacity: 0.7; }
+  .status-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+  }
+  .status-ok { background: rgba(62,207,142,0.12); color: var(--accent2); }
+  .status-err { background: rgba(239,68,68,0.12); color: var(--danger); }
+
+  .query-panels {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  .query-input-panel {
+    width: 50%;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+  .query-input-panel label {
+    font-size: 10px;
+    color: var(--muted);
+    padding: 6px 12px 0;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  textarea#query-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    padding: 8px 12px;
+    line-height: 1.65;
+  }
+  .query-output-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .query-output-panel label {
+    font-size: 10px;
+    color: var(--muted);
+    padding: 6px 12px 0;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  #result {
+    flex: 1;
+    overflow: auto;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.65;
+    color: var(--muted);
+    white-space: pre-wrap;
+  }
+  #result::-webkit-scrollbar { width: 4px; }
+  #result::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .json-key { color: #7dd3fc; }
+  .json-str { color: #86efac; }
+  .json-num { color: #fdba74; }
+  .json-bool { color: #c4b5fd; }
+  .json-null { color: var(--muted); }
+
+  /* Mutations */
+  .mut-pane {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+  }
+  .mut-pane::-webkit-scrollbar { width: 4px; }
+  .mut-pane::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .mut-group { margin-bottom: 18px; }
+  .mut-group-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Quick queries panel */
+  .quick-pane {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+    align-content: start;
+  }
+  .quick-pane::-webkit-scrollbar { width: 4px; }
+  .quick-pane::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .quick-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .quick-card:hover { border-color: var(--accent); background: rgba(91,141,238,0.05); }
+  .quick-card h3 { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .quick-card p { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .quick-card code {
+    display: block;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--accent);
+    background: var(--bg);
+    padding: 6px 8px;
+    border-radius: 4px;
+    line-height: 1.6;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .empty-state {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: var(--muted); font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">◈ DNT GraphQL Explorer</span>
+  <span class="sep"></span>
+  <span class="endpoint">https://ut-backend-api-2-41145913385.europe-north1.run.app/internal/graphql</span>
+  <span class="badge">341 types</span>
+</header>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <input type="text" id="type-search" placeholder="Filter types…" autocomplete="off"/>
+    </div>
+    <div class="type-list" id="type-list"></div>
+    <div class="legend">
+      <span class="legend-item"><span class="kind-dot kd-OBJECT"></span>Object</span>
+      <span class="legend-item"><span class="kind-dot kd-INPUT_OBJECT"></span>Input</span>
+      <span class="legend-item"><span class="kind-dot kd-ENUM"></span>Enum</span>
+      <span class="legend-item"><span class="kind-dot kd-SCALAR"></span>Scalar</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="tabs">
+      <div class="tab-btn active" data-tab="detail">Type detail</div>
+      <div class="tab-btn" data-tab="queries">Quick queries</div>
+      <div class="tab-btn" data-tab="runner">Query runner</div>
+      <div class="tab-btn" data-tab="mutations">Mutations</div>
+    </div>
+
+    <div class="tab-pane active" id="tab-detail">
+      <div class="detail-pane" id="detail-content">
+        <div class="empty-state">Select a type from the sidebar</div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-queries">
+      <div class="quick-pane" id="quick-cards"></div>
+    </div>
+
+    <div class="tab-pane" id="tab-runner">
+      <div class="query-runner">
+        <div class="query-top">
+          <select id="preset-select">
+            <option value="">Load a preset query…</option>
+          </select>
+          <span id="run-status"></span>
+          <button class="run-btn" id="run-btn">▶ Run Query</button>
+        </div>
+        <div class="query-panels">
+          <div class="query-input-panel">
+            <label>Query</label>
+            <textarea id="query-input" spellcheck="false">{ __typename }</textarea>
+          </div>
+          <div class="query-output-panel">
+            <label>Response</label>
+            <div id="result"><span style="color:var(--muted)">Results appear here…</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="tab-mutations">
+      <div class="mut-pane" id="mutations-content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const EP = 'https://ut-backend-api-2-41145913385.europe-north1.run.app/internal/graphql';
+
+const QUERIES = [
+  { name: 'publicStats', title: 'Public stats', desc: 'Entity counts across the whole platform', query: `{\n  publicStats {\n    date\n    cabinCount\n    listCount\n    routeCount\n    poiCount\n    tripCount\n    userCount\n    checkinCount\n  }\n}` },
+  { name: 'counties', title: 'List counties', desc: 'All Norwegian counties with IDs', query: `{\n  counties(paging: {first: 30}) {\n    totalCount\n    edges {\n      node { id name }\n    }\n  }\n}` },
+  { name: 'municipalities', title: 'List municipalities', desc: 'First 50 municipalities', query: `{\n  municipalities(paging: {first: 50}) {\n    totalCount\n    edges {\n      node { id name }\n    }\n  }\n}` },
+  { name: 'cabins', title: 'List cabins (public)', desc: 'First 20 public cabins with service info', query: `{\n  cabins(\n    paging: {first: 20}\n    filter: {status: {eq: PUBLIC}}\n    sorting: [{field: name, direction: ASC}]\n  ) {\n    totalCount\n    edges {\n      node {\n        id name serviceLevel dntCabin\n        elevationCustom bedsStaffed bedsSelfService\n        bookingEnabled bookingUrl\n      }\n    }\n  }\n}` },
+  { name: 'cabinsNear', title: 'Cabins near point', desc: 'Find cabins near a lat/lng coordinate', query: `{\n  cabinsNear(\n    coordinates: {lat: 61.5, lng: 9.0}\n    maxDistance: 50000\n  ) {\n    distance\n    cabin { id name serviceLevel dntCabin }\n  }\n}` },
+  { name: 'routes', title: 'List routes (public)', desc: 'First 20 public routes', query: `{\n  routes(\n    paging: {first: 20}\n    filter: {status: {eq: PUBLIC}}\n  ) {\n    totalCount\n    edges {\n      node {\n        id name distance gradingAb\n        placeA placeB durationHoursAb durationMinutesAb\n        elevationGainA elevationMax\n      }\n    }\n  }\n}` },
+  { name: 'trips', title: 'List trips (public)', desc: 'First 20 public trips', query: `{\n  trips(\n    paging: {first: 20}\n    filter: {status: {eq: PUBLIC}}\n  ) {\n    totalCount\n    edges {\n      node {\n        id name primaryActivityType\n        distance grading durationHours durationMinutes\n        elevationGain elevationMax\n      }\n    }\n  }\n}` },
+  { name: 'hikingTrips', title: 'Hiking trips', desc: 'Trips filtered to hiking activity', query: `{\n  trips(\n    paging: {first: 20}\n    filter: {\n      status: {eq: PUBLIC}\n      primaryActivityType: {eq: HIKING}\n    }\n    sorting: [{field: distance, direction: DESC}]\n  ) {\n    totalCount\n    edges {\n      node { id name distance grading durationHours }\n    }\n  }\n}` },
+  { name: 'pois', title: 'List POIs', desc: 'First 20 public points of interest', query: `{\n  pois(\n    paging: {first: 20}\n    filter: {status: {eq: PUBLIC}}\n  ) {\n    totalCount\n    edges {\n      node {\n        id name primaryTypeName\n        totalCheckinCount elevationCustom\n      }\n    }\n  }\n}` },
+  { name: 'poisNear', title: 'POIs near point', desc: 'Find POIs near a coordinate', query: `{\n  poisNear(\n    coordinates: {lat: 61.5, lng: 9.0}\n    maxDistance: 20000\n  ) {\n    distance\n    poi { id name primaryTypeName totalCheckinCount }\n  }\n}` },
+  { name: 'lists', title: 'List curated lists', desc: 'First 20 public lists', query: `{\n  lists(\n    paging: {first: 20}\n    filter: {status: {eq: PUBLIC}}\n  ) {\n    totalCount\n    edges {\n      node {\n        id name followerCount itemCount\n        activeFrom activeTo\n      }\n    }\n  }\n}` },
+  { name: 'poiTypes', title: 'POI types', desc: 'All point-of-interest type categories', query: `{\n  poiTypes {\n    id name displayName category\n  }\n}` },
+  { name: 'tripActivityTypes', title: 'Trip activity types', desc: 'All trip activity type categories', query: `{\n  tripActivityTypes {\n    id name displayName isPrimary\n  }\n}` },
+  { name: 'cabinFacilities', title: 'Cabin facilities', desc: 'All available cabin facility types', query: `{\n  cabinFacilities {\n    id name displayName\n  }\n}` },
+  { name: 'cabinServiceLevels', title: 'Cabin service levels', desc: 'All cabin service level types', query: `{\n  cabinServiceLevels {\n    id name displayName\n  }\n}` },
+  { name: 'groups', title: 'List groups', desc: 'First 20 public groups/organisations', query: `{\n  groups(\n    paging: {first: 20}\n    filter: {status: {eq: PUBLIC}}\n  ) {\n    totalCount\n    edges {\n      node {\n        id name groupTypeId\n        email phone url\n        groupType { displayName }\n      }\n    }\n  }\n}` },
+  { name: 'groupTypes', title: 'Group types', desc: 'All group/organisation type categories', query: `{\n  groupTypes {\n    id name displayName parent\n  }\n}` },
+  { name: 'reports', title: 'Active reports', desc: 'Current active condition reports', query: `{\n  reports(\n    paging: {first: 20}\n    filter: {\n      status: {eq: PUBLIC}\n      isActive: {eq: ACTIVE}\n    }\n  ) {\n    totalCount\n    edges {\n      node {\n        id name reportType isActive\n        activeFrom activeTo description\n      }\n    }\n  }\n}` },
+  { name: 'search', title: 'Full-text search', desc: 'Search across all entity types', query: `{\n  search(input: {searchString: "Besseggen", fullResult: true}) {\n    prioritizedResult\n    result\n  }\n}` },
+  { name: 'singleCabin', title: 'Single cabin by ID', desc: 'Fetch one cabin with full detail', query: `{\n  cabin(id: 1) {\n    id name serviceLevel dntCabin\n    description email phone\n    bedsStaffed bedsSelfService bedsNoService\n    bookingEnabled bookingUrl\n    elevationCustom carAllYear carSummer\n    publicTransportAvailable\n    areas { id name }\n    counties { id name }\n    municipalities { id name }\n  }\n}` },
+  { name: 'checkins', title: 'Recent checkins', desc: 'Latest 20 checkins across all entities', query: `{\n  checkins(\n    paging: {first: 20}\n    sorting: [{field: date, direction: DESC}]\n  ) {\n    totalCount\n    edges {\n      node {\n        id type date entityId\n        comment isDeleted\n      }\n    }\n  }\n}` },
+];
+
+const SCHEMA = [{"name":"Result","kind":"OBJECT","desc":"","fields":[{"name":"kind","type":"String!","desc":"","dep":false,"args":[]},{"name":"entityId","type":"Int!","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Link","kind":"OBJECT","desc":"","fields":[{"name":"type","type":"String","desc":"","dep":false,"args":[]},{"name":"title","type":"String","desc":"","dep":false,"args":[]},{"name":"url","type":"String","desc":"","dep":false,"args":[]},{"name":"sortIndex","type":"Float","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Area","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"StatusEnum","desc":"","dep":false,"args":[]},{"name":"provider","type":"String","desc":"","dep":false,"args":[]},{"name":"areaType","type":"AreaTypeEnum","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"description","type":"String","desc":"","dep":false,"args":[]},{"name":"centerPointGeojson","type":"GeoJSONPointScalarType","desc":"","dep":false,"args":[]},{"name":"geojson","type":"GeoJSONPolygonScalarType","desc":"","dep":false,"args":[]},{"name":"area","type":"Float","desc":"Area in square meters","dep":false,"args":[]},{"name":"createdAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"updatedAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"mediaConnection","type":"[AreaToMedia!]","desc":"","dep":false,"args":[]},{"name":"links","type":"[Link!]","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"StatusEnum","kind":"ENUM","desc":"","fields":[],"inputFields":[],"enumValues":[{"name":"PUBLIC"},{"name":"DRAFT"},{"name":"PRIVATE"},{"name":"PRIVATE_SHARED"},{"name":"DELETED"}],"interfaces":[]},{"name":"AreaTypeEnum","kind":"ENUM","desc":"","fields":[],"inputFields":[],"enumValues":[{"name":"DNT_AREA"},{"name":"DNT_WORK_AREA"},{"name":"PROTECTED_AREA"},{"name":"REINDEER_AREA"},{"name":"REPORT_AREA"}],"interfaces":[]},{"name":"Cabin","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"StatusEnum!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"serviceLevel","type":"CabinServiceLevelEnum","desc":"","dep":false,"args":[]},{"name":"description","type":"String","desc":"","dep":false,"args":[]},{"name":"geojson","type":"GeoJSONPointScalarType","desc":"","dep":false,"args":[]},{"name":"dntCabin","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"email","type":"String","desc":"","dep":false,"args":[]},{"name":"phone","type":"String","desc":"","dep":false,"args":[]},{"name":"bedsStaffed","type":"Int","desc":"","dep":false,"args":[]},{"name":"bedsSelfService","type":"Int","desc":"","dep":false,"args":[]},{"name":"bedsNoService","type":"Int","desc":"","dep":false,"args":[]},{"name":"bedsWinter","type":"Int","desc":"","dep":false,"args":[]},{"name":"bookingEnabled","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"bookingUrl","type":"String","desc":"","dep":false,"args":[]},{"name":"carAllYear","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"carSummer","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"publicTransportAvailable","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"elevationCustom","type":"Int","desc":"","dep":false,"args":[]},{"name":"yearOfConstruction","type":"Int","desc":"","dep":false,"args":[]},{"name":"createdAt","type":"DateTime!","desc":"","dep":false,"args":[]},{"name":"updatedAt","type":"DateTime!","desc":"","dep":false,"args":[]},{"name":"media","type":"[Media!]","desc":"","dep":false,"args":[]},{"name":"totalCheckinCount","type":"Int","desc":"","dep":false,"args":[]},{"name":"areas","type":"[Area!]","desc":"","dep":false,"args":[]},{"name":"counties","type":"[County!]","desc":"","dep":false,"args":[]},{"name":"municipalities","type":"[Municipality!]","desc":"","dep":false,"args":[]},{"name":"links","type":"[Link!]","desc":"","dep":false,"args":[]},{"name":"suitableFor","type":"[SuitableFor!]","desc":"","dep":false,"args":[]},{"name":"myUserData","type":"MyUserCabinData","desc":"Only to be used when fetching ONE cabin","dep":false,"args":[]},{"name":"accessibilities","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"facilities","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"serviceStatus","type":"[CabinServiceStatus!]","desc":"","dep":false,"args":[]},{"name":"serviceStatusToday","type":"CabinServiceStatus","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Route","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"StatusEnum!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"placeA","type":"String","desc":"","dep":false,"args":[]},{"name":"placeB","type":"String","desc":"","dep":false,"args":[]},{"name":"placeVia","type":"String","desc":"","dep":false,"args":[]},{"name":"distance","type":"Int","desc":"","dep":false,"args":[]},{"name":"gradingAb","type":"GradingEnum","desc":"","dep":false,"args":[]},{"name":"gradingBa","type":"GradingEnum","desc":"","dep":false,"args":[]},{"name":"durationHoursAb","type":"Int","desc":"","dep":false,"args":[]},{"name":"durationMinutesAb","type":"Int","desc":"","dep":false,"args":[]},{"name":"durationHoursBa","type":"Int","desc":"","dep":false,"args":[]},{"name":"durationMinutesBa","type":"Int","desc":"","dep":false,"args":[]},{"name":"elevationGainA","type":"Int","desc":"","dep":false,"args":[]},{"name":"elevationLossA","type":"Int","desc":"","dep":false,"args":[]},{"name":"elevationGainB","type":"Int","desc":"","dep":false,"args":[]},{"name":"elevationMax","type":"Int","desc":"","dep":false,"args":[]},{"name":"elevationMin","type":"Int","desc":"","dep":false,"args":[]},{"name":"geojson","type":"GeoJSONLineStringScalarType","desc":"","dep":false,"args":[]},{"name":"encodedPolyline","type":"String","desc":"","dep":false,"args":[]},{"name":"descriptionAb","type":"String","desc":"","dep":false,"args":[]},{"name":"descriptionBa","type":"String","desc":"","dep":false,"args":[]},{"name":"type","type":"String","desc":"","dep":false,"args":[]},{"name":"code","type":"String","desc":"","dep":false,"args":[]},{"name":"waymarkWinter","type":"String","desc":"","dep":false,"args":[]},{"name":"suitableForWheelchairs","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"createdAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"updatedAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"media","type":"[Media!]","desc":"","dep":false,"args":[]},{"name":"areas","type":"[Area!]","desc":"","dep":false,"args":[]},{"name":"counties","type":"[County!]","desc":"","dep":false,"args":[]},{"name":"municipalities","type":"[Municipality!]","desc":"","dep":false,"args":[]},{"name":"waymarks","type":"[Waymark!]","desc":"","dep":false,"args":[]},{"name":"links","type":"[Link!]","desc":"","dep":false,"args":[]},{"name":"groups","type":"[Group!]","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Trip","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"StatusEnum!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"primaryActivityType","type":"PrimaryActivityTypeEnum","desc":"","dep":false,"args":[]},{"name":"season","type":"[Int!]","desc":"","dep":false,"args":[]},{"name":"distance","type":"Int","desc":"","dep":false,"args":[]},{"name":"grading","type":"GradingEnum","desc":"","dep":false,"args":[]},{"name":"direction","type":"DirectionEnum","desc":"","dep":false,"args":[]},{"name":"durationDays","type":"Int","desc":"","dep":false,"args":[]},{"name":"durationHours","type":"Int","desc":"","dep":false,"args":[]},{"name":"durationMinutes","type":"Int","desc":"","dep":false,"args":[]},{"name":"elevationGain","type":"Int","desc":"","dep":false,"args":[]},{"name":"elevationLoss","type":"Int","desc":"","dep":false,"args":[]},{"name":"elevationMax","type":"Int","desc":"","dep":false,"args":[]},{"name":"startPointGeojson","type":"GeoJSONPointScalarType","desc":"","dep":false,"args":[]},{"name":"geojson","type":"GeoJSONLineStringScalarType","desc":"","dep":false,"args":[]},{"name":"encodedPolyline","type":"String","desc":"","dep":false,"args":[]},{"name":"description","type":"String","desc":"","dep":false,"args":[]},{"name":"transportPublic","type":"String","desc":"","dep":false,"args":[]},{"name":"accessibilityDescription","type":"String","desc":"","dep":false,"args":[]},{"name":"createdAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"updatedAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"media","type":"[Media!]","desc":"","dep":false,"args":[]},{"name":"areas","type":"[Area!]","desc":"","dep":false,"args":[]},{"name":"cabins","type":"[Cabin!]","desc":"","dep":false,"args":[]},{"name":"pois","type":"[Poi!]","desc":"","dep":false,"args":[]},{"name":"activityTypes","type":"[TripActivityType!]","desc":"","dep":false,"args":[]},{"name":"suitableFor","type":"[SuitableFor!]","desc":"","dep":false,"args":[]},{"name":"accessibilities","type":"[TripAccessibility!]","desc":"","dep":false,"args":[]},{"name":"counties","type":"[County!]","desc":"","dep":false,"args":[]},{"name":"municipalities","type":"[Municipality!]","desc":"","dep":false,"args":[]},{"name":"links","type":"[Link!]","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Poi","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"StatusEnum!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"primaryTypeName","type":"String!","desc":"","dep":false,"args":[]},{"name":"primaryType","type":"PoiType","desc":"","dep":false,"args":[]},{"name":"description","type":"String","desc":"","dep":false,"args":[]},{"name":"geojson","type":"GeoJSONPointScalarType","desc":"","dep":false,"args":[]},{"name":"elevationCustom","type":"Int","desc":"","dep":false,"args":[]},{"name":"totalCheckinCount","type":"Int","desc":"","dep":false,"args":[]},{"name":"createdAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"updatedAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"media","type":"[Media!]","desc":"","dep":false,"args":[]},{"name":"areas","type":"[Area!]","desc":"","dep":false,"args":[]},{"name":"routes","type":"[Route!]","desc":"","dep":false,"args":[]},{"name":"trips","type":"[Trip!]","desc":"","dep":false,"args":[]},{"name":"counties","type":"[County!]","desc":"","dep":false,"args":[]},{"name":"municipalities","type":"[Municipality!]","desc":"","dep":false,"args":[]},{"name":"suitableFor","type":"[SuitableFor!]","desc":"","dep":false,"args":[]},{"name":"links","type":"[Link!]","desc":"","dep":false,"args":[]},{"name":"secondaryTypes","type":"[PoiType!]","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"User","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"UserStatusEnum!","desc":"","dep":false,"args":[]},{"name":"email","type":"String","desc":"","dep":false,"args":[]},{"name":"username","type":"String","desc":"","dep":false,"args":[]},{"name":"biography","type":"String","desc":"","dep":false,"args":[]},{"name":"birthday","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"publicProfile","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"mediaUri","type":"String","desc":"","dep":false,"args":[]},{"name":"superadmin","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"areaadmin","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"createdAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"updatedAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"media","type":"Media","desc":"","dep":false,"args":[]},{"name":"groupConnection","type":"[UserToGroup!]","desc":"","dep":false,"args":[]},{"name":"firebaseData","type":"FirebaseData","desc":"User data from Firebase","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Checkin","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"type","type":"CheckinTypeEnum!","desc":"","dep":false,"args":[]},{"name":"userId","type":"Int","desc":"Can be null for legacy checkins","dep":false,"args":[]},{"name":"entityId","type":"Int!","desc":"Id of a cabin or poi","dep":false,"args":[]},{"name":"date","type":"DateTime!","desc":"","dep":false,"args":[]},{"name":"comment","type":"String","desc":"","dep":false,"args":[]},{"name":"mediaUri","type":"String","desc":"","dep":false,"args":[]},{"name":"commentDisabled","type":"Boolean","desc":"Comment null if true (moderation)","dep":false,"args":[]},{"name":"isDeleted","type":"Boolean!","desc":"","dep":false,"args":[]},{"name":"user","type":"User","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"List","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"StatusEnum!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"description","type":"String","desc":"","dep":false,"args":[]},{"name":"activeFrom","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"activeTo","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"videoUri","type":"String","desc":"","dep":false,"args":[]},{"name":"followerCount","type":"Float","desc":"","dep":false,"args":[]},{"name":"itemCount","type":"Float","desc":"","dep":false,"args":[]},{"name":"itemIds","type":"[Int!]","desc":"","dep":false,"args":[]},{"name":"internalNote","type":"String","desc":"","dep":false,"args":[]},{"name":"isUserDefault","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"createdAt","type":"DateTime!","desc":"","dep":false,"args":[]},{"name":"updatedAt","type":"DateTime!","desc":"","dep":false,"args":[]},{"name":"media","type":"[Media!]","desc":"","dep":false,"args":[]},{"name":"groups","type":"[Group!]","desc":"","dep":false,"args":[]},{"name":"links","type":"[Link!]","desc":"","dep":false,"args":[]},{"name":"items","type":"[ListToEntity!]","desc":"","dep":false,"args":[]},{"name":"listItems","type":"[ListToEntity!]","desc":"Only for single list fetch","dep":false,"args":[]},{"name":"myUserData","type":"MyUserListData","desc":"Only for single list fetch","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Report","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"StatusEnum!","desc":"","dep":false,"args":[]},{"name":"reportType","type":"ReportTypeEnum","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"subType","type":"String","desc":"","dep":false,"args":[]},{"name":"description","type":"String","desc":"","dep":false,"args":[]},{"name":"activeFrom","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"activeTo","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"isActive","type":"ReportStatusEnum!","desc":"","dep":false,"args":[]},{"name":"internalNote","type":"String","desc":"","dep":false,"args":[]},{"name":"createdAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"updatedAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"areas","type":"[Area!]","desc":"","dep":false,"args":[]},{"name":"groups","type":"[Group!]","desc":"","dep":false,"args":[]},{"name":"media","type":"[Media!]","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Group","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"StatusEnum!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"groupTypeId","type":"String!","desc":"","dep":false,"args":[]},{"name":"description","type":"String","desc":"","dep":false,"args":[]},{"name":"organizationNumber","type":"String","desc":"","dep":false,"args":[]},{"name":"email","type":"String","desc":"","dep":false,"args":[]},{"name":"phone","type":"String","desc":"","dep":false,"args":[]},{"name":"mobile","type":"String","desc":"","dep":false,"args":[]},{"name":"url","type":"String","desc":"","dep":false,"args":[]},{"name":"createdAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"updatedAt","type":"DateTime","desc":"","dep":false,"args":[]},{"name":"groupType","type":"GroupType","desc":"","dep":false,"args":[]},{"name":"links","type":"[Link!]","desc":"","dep":false,"args":[]},{"name":"userConnections","type":"[UserToGroup!]","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Municipality","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"geojson","type":"GeoJSONPolygonScalarType","desc":"","dep":false,"args":[]},{"name":"centerPointGeojson","type":"GeoJSONPointScalarType","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"County","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"geojson","type":"GeoJSONPolygonScalarType","desc":"","dep":false,"args":[]},{"name":"centerPointGeojson","type":"GeoJSONPointScalarType","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Media","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"StatusEnum!","desc":"","dep":false,"args":[]},{"name":"uri","type":"String!","desc":"","dep":false,"args":[]},{"name":"type","type":"String","desc":"","dep":false,"args":[]},{"name":"description","type":"String","desc":"","dep":false,"args":[]},{"name":"altText","type":"String","desc":"","dep":false,"args":[]},{"name":"photographer","type":"String","desc":"","dep":false,"args":[]},{"name":"license","type":"String","desc":"","dep":false,"args":[]},{"name":"tags","type":"[String!]","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"GradingEnum","kind":"ENUM","desc":"","fields":[],"inputFields":[],"enumValues":[{"name":"EASY"},{"name":"MODERATE"},{"name":"TOUGH"},{"name":"VERY_TOUGH"}],"interfaces":[]},{"name":"PrimaryActivityTypeEnum","kind":"ENUM","desc":"","fields":[],"inputFields":[],"enumValues":[{"name":"BERRY_PICKING"},{"name":"CLIMBING"},{"name":"CYCLING"},{"name":"GLACIER_TRIP"},{"name":"HIKING"},{"name":"PADLING"},{"name":"SKI_TOURING"}],"interfaces":[]},{"name":"CabinServiceLevelEnum","kind":"ENUM","desc":"","fields":[],"inputFields":[],"enumValues":[{"name":"STAFFED"},{"name":"SELF_SERVICE"},{"name":"NO_SERVICE"},{"name":"NO_SERVICE_NO_BEDS"},{"name":"FOOD_SERVICE"},{"name":"EMERGENCY_SHELTER"},{"name":"CLOSED"},{"name":"RENTAL"},{"name":"UNKNOWN"}],"interfaces":[]},{"name":"CheckinTypeEnum","kind":"ENUM","desc":"","fields":[],"inputFields":[],"enumValues":[{"name":"GPS"},{"name":"MANUEL"},{"name":"ADMIN_MANUEL"}],"interfaces":[]},{"name":"ReportTypeEnum","kind":"ENUM","desc":"","fields":[],"inputFields":[],"enumValues":[{"name":"CONDITION"},{"name":"OBSERVATION"}],"interfaces":[]},{"name":"ReportStatusEnum","kind":"ENUM","desc":"","fields":[],"inputFields":[],"enumValues":[{"name":"ACTIVE"},{"name":"INACTIVE"},{"name":"DRAFT"}],"interfaces":[]},{"name":"UserStatusEnum","kind":"ENUM","desc":"","fields":[],"inputFields":[],"enumValues":[{"name":"PUBLIC"},{"name":"DELETED"},{"name":"DISABLED"}],"interfaces":[]},{"name":"DirectionEnum","kind":"ENUM","desc":"","fields":[],"inputFields":[],"enumValues":[{"name":"AA"},{"name":"AB"},{"name":"ABA"}],"interfaces":[]},{"name":"PoiType","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"displayName","type":"String!","desc":"","dep":false,"args":[]},{"name":"category","type":"String!","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"SuitableFor","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"displayName","type":"String","desc":"","dep":false,"args":[]},{"name":"name","type":"String","desc":"Technical name","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"GroupType","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"parent","type":"String","desc":"","dep":false,"args":[]},{"name":"displayName","type":"String","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"PublicStats","kind":"OBJECT","desc":"","fields":[{"name":"date","type":"DateTime!","desc":"","dep":false,"args":[]},{"name":"cabinCount","type":"Int!","desc":"","dep":false,"args":[]},{"name":"listCount","type":"Int!","desc":"","dep":false,"args":[]},{"name":"routeCount","type":"Int!","desc":"","dep":false,"args":[]},{"name":"poiCount","type":"Int!","desc":"","dep":false,"args":[]},{"name":"tripCount","type":"Int!","desc":"","dep":false,"args":[]},{"name":"userCount","type":"Int!","desc":"","dep":false,"args":[]},{"name":"checkinCount","type":"Int!","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"TripActivityType","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"displayName","type":"String!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"isPrimary","type":"Boolean!","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"TripAccessibility","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"displayName","type":"String!","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"PageInfo","kind":"OBJECT","desc":"","fields":[{"name":"hasNextPage","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"hasPreviousPage","type":"Boolean","desc":"","dep":false,"args":[]},{"name":"startCursor","type":"ConnectionCursor","desc":"","dep":false,"args":[]},{"name":"endCursor","type":"ConnectionCursor","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"PublicTransportStop","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"idNsr","type":"String!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"type","type":"String!","desc":"","dep":false,"args":[]},{"name":"lat","type":"Float!","desc":"","dep":false,"args":[]},{"name":"lng","type":"Float!","desc":"","dep":false,"args":[]},{"name":"fromHereUri","type":"String!","desc":"","dep":false,"args":[]},{"name":"toHereUri","type":"String!","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"GuestbookEntry","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"userId","type":"Int","desc":"","dep":false,"args":[]},{"name":"entityId","type":"Int!","desc":"","dep":false,"args":[]},{"name":"date","type":"DateTime!","desc":"","dep":false,"args":[]},{"name":"comment","type":"String","desc":"","dep":false,"args":[]},{"name":"mediaUri","type":"String","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"ApiClient","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"ID!","desc":"","dep":false,"args":[]},{"name":"displayName","type":"String!","desc":"","dep":false,"args":[]},{"name":"clientName","type":"String!","desc":"","dep":false,"args":[]},{"name":"apiKey","type":"String!","desc":"","dep":false,"args":[]},{"name":"internalAccess","type":"Boolean!","desc":"","dep":false,"args":[]},{"name":"isActive","type":"Boolean!","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Waymark","kind":"OBJECT","desc":"","fields":[{"name":"name","type":"String!","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Placename","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"ssrType","type":"String!","desc":"","dep":false,"args":[]},{"name":"geojson","type":"GeoJSONPolygonScalarType","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Startpoint","kind":"OBJECT","desc":"","fields":[{"name":"id","type":"Int!","desc":"","dep":false,"args":[]},{"name":"status","type":"StatusEnum!","desc":"","dep":false,"args":[]},{"name":"name","type":"String!","desc":"","dep":false,"args":[]},{"name":"primaryTypeName","type":"String!","desc":"","dep":false,"args":[]},{"name":"geojson","type":"GeoJSONPointScalarType","desc":"","dep":false,"args":[]},{"name":"trips","type":"[Trip!]","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"GeoJSONPointScalarType","kind":"SCALAR","desc":"","fields":[],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"GeoJSONPolygonScalarType","kind":"SCALAR","desc":"","fields":[],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"GeoJSONLineStringScalarType","kind":"SCALAR","desc":"","fields":[],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Query","kind":"OBJECT","desc":"","fields":[{"name":"area","type":"Area!","desc":"","dep":false,"args":[]},{"name":"areas","type":"AreaConnection!","desc":"","dep":false,"args":[]},{"name":"checkin","type":"Checkin!","desc":"","dep":false,"args":[]},{"name":"checkins","type":"CheckinConnection!","desc":"","dep":false,"args":[]},{"name":"getCheckinsForList","type":"CheckinConnection!","desc":"Get checkins for list","dep":false,"args":[]},{"name":"entityCheckinStats","type":"EntityCheckinStats!","desc":"","dep":false,"args":[]},{"name":"listCheckinStats","type":"ListCheckinStats!","desc":"","dep":false,"args":[]},{"name":"guestbookEntries","type":"GuestbookEntryConnection!","desc":"","dep":false,"args":[]},{"name":"getElevation","type":"Elevation!","desc":"","dep":false,"args":[]},{"name":"nameLookup","type":"String!","desc":"","dep":false,"args":[]},{"name":"suitableFor","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"publicStats","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"county","type":"County!","desc":"","dep":false,"args":[]},{"name":"counties","type":"CountyConnection!","desc":"","dep":false,"args":[]},{"name":"cabinsNear","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"cabin","type":"Cabin!","desc":"","dep":false,"args":[]},{"name":"cabins","type":"CabinConnection!","desc":"","dep":false,"args":[]},{"name":"cabinFacilities","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"cabinServiceLevels","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"cabinAccessibilities","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"group","type":"Group!","desc":"","dep":false,"args":[]},{"name":"groups","type":"GroupConnection!","desc":"","dep":false,"args":[]},{"name":"groupTypes","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"list","type":"List","desc":"","dep":false,"args":[]},{"name":"lists","type":"ListConnection!","desc":"","dep":false,"args":[]},{"name":"listsNear","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"municipality","type":"Municipality!","desc":"","dep":false,"args":[]},{"name":"municipalities","type":"MunicipalityConnection!","desc":"","dep":false,"args":[]},{"name":"report","type":"Report!","desc":"","dep":false,"args":[]},{"name":"reports","type":"ReportConnection!","desc":"","dep":false,"args":[]},{"name":"reportsForEntity","type":"ReportConnection!","desc":"Active reports from areas where an entity is located","dep":false,"args":[]},{"name":"route","type":"Route!","desc":"","dep":false,"args":[]},{"name":"routes","type":"RouteConnection!","desc":"","dep":false,"args":[]},{"name":"routesNear","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"routeWaymarkTypes","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"placename","type":"Placename!","desc":"","dep":false,"args":[]},{"name":"poi","type":"Poi!","desc":"","dep":false,"args":[]},{"name":"pois","type":"PoiConnection!","desc":"","dep":false,"args":[]},{"name":"poisNear","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"poiTypes","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"startpoint","type":"Startpoint!","desc":"","dep":false,"args":[]},{"name":"search","type":"SearchPayload!","desc":"","dep":false,"args":[]},{"name":"trip","type":"Trip!","desc":"","dep":false,"args":[]},{"name":"trips","type":"TripConnection!","desc":"","dep":false,"args":[]},{"name":"tripsNear","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"tripActivityTypes","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"tripAccessibilities","type":"[!]!","desc":"","dep":false,"args":[]},{"name":"me","type":"User!","desc":"","dep":false,"args":[]},{"name":"user","type":"User!","desc":"","dep":false,"args":[]},{"name":"users","type":"UserConnection!","desc":"","dep":false,"args":[]},{"name":"publicTransportStop","type":"PublicTransportStop!","desc":"","dep":false,"args":[]},{"name":"apiClients","type":"[!]!","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]},{"name":"Mutation","kind":"OBJECT","desc":"","fields":[{"name":"areaCreate","type":"Result!","desc":"","dep":false,"args":[]},{"name":"areaUpdate","type":"Area!","desc":"","dep":false,"args":[]},{"name":"areaDelete","type":"Result!","desc":"","dep":false,"args":[]},{"name":"areaPublish","type":"Area!","desc":"","dep":false,"args":[]},{"name":"areaUnpublish","type":"Area!","desc":"","dep":false,"args":[]},{"name":"cabinCreate","type":"Result!","desc":"","dep":false,"args":[]},{"name":"cabinUpdate","type":"Cabin!","desc":"","dep":false,"args":[]},{"name":"cabinPublish","type":"Cabin!","desc":"","dep":false,"args":[]},{"name":"cabinUnpublish","type":"Cabin!","desc":"","dep":false,"args":[]},{"name":"cabinDelete","type":"Result!","desc":"","dep":false,"args":[]},{"name":"cabinAddMedia","type":"Result!","desc":"","dep":false,"args":[]},{"name":"checkinCreate","type":"Checkin!","desc":"[Admin]","dep":false,"args":[]},{"name":"checkinUpdate","type":"Checkin!","desc":"[Admin]","dep":false,"args":[]},{"name":"checkinDelete","type":"Checkin!","desc":"[Admin]","dep":false,"args":[]},{"name":"myCheckinUpsert","type":"MyCheckin!","desc":"","dep":false,"args":[]},{"name":"myCheckinDelete","type":"MyCheckin!","desc":"","dep":false,"args":[]},{"name":"myCheckinCreate","type":"MyCheckin!","desc":"","dep":false,"args":[]},{"name":"myCheckinUpdate","type":"MyCheckin!","desc":"","dep":false,"args":[]},{"name":"groupCreate","type":"Result!","desc":"","dep":false,"args":[]},{"name":"groupUpdate","type":"Group!","desc":"","dep":false,"args":[]},{"name":"groupDelete","type":"Result!","desc":"","dep":false,"args":[]},{"name":"groupPublish","type":"Group!","desc":"","dep":false,"args":[]},{"name":"listCreate","type":"Result!","desc":"","dep":false,"args":[]},{"name":"listUpdate","type":"List!","desc":"","dep":false,"args":[]},{"name":"listDelete","type":"Result!","desc":"","dep":false,"args":[]},{"name":"listPublish","type":"List!","desc":"","dep":false,"args":[]},{"name":"followList","type":"Result!","desc":"","dep":false,"args":[]},{"name":"unfollowList","type":"Result!","desc":"","dep":false,"args":[]},{"name":"listRegister","type":"Result!","desc":"","dep":false,"args":[]},{"name":"listUnregister","type":"Result!","desc":"","dep":false,"args":[]},{"name":"mediaCreate","type":"Media!","desc":"","dep":false,"args":[]},{"name":"mediaUpdate","type":"Media!","desc":"","dep":false,"args":[]},{"name":"mediaDelete","type":"Int!","desc":"","dep":false,"args":[]},{"name":"poiCreate","type":"Result!","desc":"","dep":false,"args":[]},{"name":"poiUpdate","type":"Poi!","desc":"","dep":false,"args":[]},{"name":"poiDelete","type":"Result!","desc":"","dep":false,"args":[]},{"name":"poiPublish","type":"Poi!","desc":"","dep":false,"args":[]},{"name":"reportCreate","type":"Result!","desc":"","dep":false,"args":[]},{"name":"reportUpdate","type":"Report!","desc":"","dep":false,"args":[]},{"name":"reportPublish","type":"Report!","desc":"","dep":false,"args":[]},{"name":"reportDelete","type":"Result!","desc":"","dep":false,"args":[]},{"name":"routeCreate","type":"Result!","desc":"","dep":false,"args":[]},{"name":"routeUpdate","type":"Route!","desc":"","dep":false,"args":[]},{"name":"routeDelete","type":"Result!","desc":"","dep":false,"args":[]},{"name":"routePublish","type":"Route!","desc":"","dep":false,"args":[]},{"name":"tripCreate","type":"Result!","desc":"","dep":false,"args":[]},{"name":"tripUpdate","type":"Trip!","desc":"","dep":false,"args":[]},{"name":"tripDelete","type":"Result!","desc":"","dep":false,"args":[]},{"name":"tripPublish","type":"Trip!","desc":"","dep":false,"args":[]},{"name":"myTripCreate","type":"MyTrip!","desc":"","dep":false,"args":[]},{"name":"myTripUpdate","type":"MyTrip!","desc":"","dep":false,"args":[]},{"name":"myTripDelete","type":"Result!","desc":"","dep":false,"args":[]},{"name":"myUserCreate","type":"User!","desc":"","dep":false,"args":[]},{"name":"myUserUpdate","type":"User!","desc":"","dep":false,"args":[]},{"name":"myUserDelete","type":"Result!","desc":"User disabled and marked for deletion","dep":false,"args":[]},{"name":"userUpdate","type":"User!","desc":"","dep":false,"args":[]},{"name":"userDelete","type":"Result!","desc":"","dep":false,"args":[]},{"name":"sendEmailVerification","type":"UserVerificationLink!","desc":"","dep":false,"args":[]}],"inputFields":[],"enumValues":[],"interfaces":[]}];
+
+let activeType = null;
+
+// ── Sidebar ──────────────────────────────────────────────
+function renderTypeList(filter) {
+  const ORDER = ['OBJECT','INTERFACE','UNION','ENUM','INPUT_OBJECT','SCALAR'];
+  const f = (filter || '').toLowerCase();
+  const sorted = [...SCHEMA].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || a.name.localeCompare(b.name));
+  const items = f ? sorted.filter(t => t.name.toLowerCase().includes(f)) : sorted;
+  document.getElementById('type-list').innerHTML = items.map(t => {
+    const ac = activeType && activeType.name === t.name ? ' active' : '';
+    return `<div class="type-item${ac}" data-name="${t.name}"><span class="kind-dot kd-${t.kind}"></span><span class="type-name">${t.name}</span></div>`;
+  }).join('');
+  document.querySelectorAll('.type-item').forEach(el => el.addEventListener('click', () => {
+    const t = SCHEMA.find(x => x.name === el.dataset.name);
+    if (t) showType(t);
+  }));
+}
+
+document.getElementById('type-search').addEventListener('input', e => renderTypeList(e.target.value));
+
+// ── Detail ───────────────────────────────────────────────
+function kindBadge(k) {
+  return `<span class="kind-badge kb-${k}">${k.replace('_', ' ')}</span>`;
+}
+
+function showType(t) {
+  activeType = t;
+  renderTypeList(document.getElementById('type-search').value);
+  switchTab('detail');
+  const fields = t.fields || [];
+  const ifields = t.inputFields || [];
+  const enums = t.enumValues || [];
+  let h = `<div class="detail-header"><h2>${t.name}</h2>${kindBadge(t.kind)}</div>`;
+  if (t.desc) h += `<p class="detail-desc">${t.desc}</p>`;
+  const allFields = fields.length ? fields : ifields;
+  if (allFields.length) {
+    h += `<table class="fields-table">`;
+    allFields.forEach(f => {
+      const dep = f.dep ? `<span class="dep-badge">deprecated</span>` : '';
+      const args = f.args && f.args.length ? `<span class="field-args">args: ${f.args.map(a => a.name + ': ' + a.type).join(', ')}</span>` : '';
+      h += `<tr>
+        <td class="field-name">${f.name}${dep}${args}</td>
+        <td class="field-desc">${f.desc || ''}</td>
+        <td class="field-type">${f.type || ''}</td>
+      </tr>`;
+    });
+    h += `</table>`;
+  } else if (enums.length) {
+    h += `<table class="fields-table">`;
+    enums.forEach(e => {
+      h += `<tr><td class="field-name">${e.name}</td><td class="field-desc">${e.desc || ''}</td><td class="field-type"></td></tr>`;
+    });
+    h += `</table>`;
+  } else {
+    h += `<p style="color:var(--muted);font-size:12px">No fields</p>`;
+  }
+  // Try query button for queryable types
+  const preset = QUERIES.find(q => q.name === t.name.charAt(0).toLowerCase() + t.name.slice(1) || q.name === t.name.toLowerCase());
+  if (preset) {
+    h += `<br><button class="try-btn" onclick="loadQuery(${QUERIES.indexOf(preset)})">Open in query runner ↗</button>`;
+  }
+  document.getElementById('detail-content').innerHTML = h;
+}
+
+// ── Tabs ─────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+}
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+
+// ── Quick queries ─────────────────────────────────────────
+function buildQuickCards() {
+  const el = document.getElementById('quick-cards');
+  el.innerHTML = QUERIES.map((q, i) => `
+    <div class="quick-card" onclick="loadQuery(${i})">
+      <h3>${q.title}</h3>
+      <p>${q.desc}</p>
+      <code>${q.query.split('\n').slice(0,4).join('\n')}</code>
+    </div>
+  `).join('');
+}
+
+function loadQuery(i) {
+  document.getElementById('query-input').value = QUERIES[i].query;
+  document.getElementById('preset-select').value = String(i);
+  switchTab('runner');
+}
+
+// ── Preset select ─────────────────────────────────────────
+const sel = document.getElementById('preset-select');
+QUERIES.forEach((q, i) => {
+  const opt = document.createElement('option');
+  opt.value = i; opt.textContent = q.title;
+  sel.appendChild(opt);
+});
+sel.addEventListener('change', () => {
+  if (sel.value !== '') loadQuery(Number(sel.value));
+});
+
+// ── Query runner ──────────────────────────────────────────
+function syntaxHighlight(json) {
+  return json
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) return `<span class="json-key">${match}</span>`;
+        return `<span class="json-str">${match}</span>`;
+      }
+      if (/true|false/.test(match)) return `<span class="json-bool">${match}</span>`;
+      if (/null/.test(match)) return `<span class="json-null">${match}</span>`;
+      return `<span class="json-num">${match}</span>`;
+    });
+}
+
+document.getElementById('run-btn').addEventListener('click', async () => {
+  const q = document.getElementById('query-input').value.trim();
+  const res = document.getElementById('result');
+  const stat = document.getElementById('run-status');
+  res.innerHTML = '<span style="color:var(--muted)">Running…</span>';
+  stat.textContent = '';
+  const t0 = Date.now();
+  try {
+    const r = await fetch(EP, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q })
+    });
+    const ms = Date.now() - t0;
+    const data = await r.json();
+    stat.innerHTML = `<span class="status-badge ${r.ok ? 'status-ok' : 'status-err'}">${r.status} · ${ms}ms</span>`;
+    res.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
+  } catch (e) {
+    stat.innerHTML = `<span class="status-badge status-err">Error</span>`;
+    res.textContent = String(e);
+  }
+});
+
+// Ctrl+Enter to run
+document.getElementById('query-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) document.getElementById('run-btn').click();
+});
+
+// ── Mutations ─────────────────────────────────────────────
+function buildMutations() {
+  const mut = SCHEMA.find(t => t.name === 'Mutation');
+  if (!mut) return;
+  const groups = {};
+  const ENTITIES = ['area', 'cabin', 'checkin', 'myCheckin', 'group', 'list', 'myList', 'media', 'poi', 'report', 'route', 'trip', 'myTrip', 'user', 'myUser'];
+  mut.fields.forEach(f => {
+    const entity = ENTITIES.find(e => f.name.toLowerCase().startsWith(e.toLowerCase())) || 'other';
+    if (!groups[entity]) groups[entity] = [];
+    groups[entity].push(f);
+  });
+  const el = document.getElementById('mutations-content');
+  el.innerHTML = Object.entries(groups).map(([g, fs]) => `
+    <div class="mut-group">
+      <div class="mut-group-title">${g}</div>
+      <table class="fields-table">
+        ${fs.map(f => `<tr>
+          <td class="field-name">${f.name}</td>
+          <td class="field-desc">${f.desc || ''}</td>
+          <td class="field-type">${f.type}</td>
+        </tr>`).join('')}
+      </table>
+    </div>
+  `).join('');
+}
+
+// ── Init ──────────────────────────────────────────────────
+renderTypeList('');
+buildQuickCards();
+buildMutations();
+
+// Show Query type on load
+const qt = SCHEMA.find(t => t.name === 'Query');
+if (qt) showType(qt);
+</script>
+</body>
+</html>

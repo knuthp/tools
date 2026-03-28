@@ -18,6 +18,10 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [AIS Trips Animation](./ais_trips.html) Animate a day of AIS vessel traffic using Deck.gl and DuckDB-Wasm.
 * [Entur Trips Animation](./entur_trips.html) Animate a day of Entur vehicle monitoring traffic using Deck.gl and DuckDB-Wasm.
 
+### DNT cabins, trips, etc
+
+* [API (graphql) browser](./dnt-graphql-explorer.html) Explore what data is available from DNT graphql API.
+
 ### Genealogy
 * [Genealogy Tree Viewer](./genealogy_tree.html) A D3.js powered genealogy tree viewer that shows ancestors (parents above children). Supports multiple JSON data files.
 
