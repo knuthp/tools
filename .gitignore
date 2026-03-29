@@ -7,6 +7,8 @@ __pycache__/
 node_modules/
 
 _build/
+data/vehicle_positions.db
+data/stops.parquet
 
 # wrangler files
 .wrangler
