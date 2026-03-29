@@ -21,6 +21,10 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 ### DNT cabins, trips, etc
 
 * [API (graphql) browser](./dnt-graphql-explorer.html) Explore what data is available from DNT graphql API.
+    * https://ut-backend-api-2-41145913385.europe-north1.run.app/compact-data-v2?cabins=true
+    * https://ut-backend-api-2-41145913385.europe-north1.run.app/compact-data-v2?pois=true
+    * https://ut-backend-api-2-41145913385.europe-north1.run.app/compact-data-v2?trips=true
+* <https://rettikartet.no/app/turruter> Kartverkets database?
 
 ### Genealogy
 * [Genealogy Tree Viewer](./genealogy_tree.html) A D3.js powered genealogy tree viewer that shows ancestors (parents above children). Supports multiple JSON data files.
