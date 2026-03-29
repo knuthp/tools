@@ -130,55 +130,116 @@ def main():
     try:
         cols = con.execute("DESCRIBE stops").fetchall()
         col_names = [c[0] for c in cols]
-        has_lat_lon = "stop_lat" in col_names and "stop_lon" in col_names
-
-        if has_lat_lon:
-            lon1, lat1 = "s1.stop_lon", "s1.stop_lat"
-            lon2, lat2 = "s2.stop_lon", "s2.stop_lat"
-        else:
-            # Assume we need to extract from geometry
-            lon1 = "ST_X(ST_GeomFromWKB(s1.geometry))"
-            lat1 = "ST_Y(ST_GeomFromWKB(s1.geometry))"
-            lon2 = "ST_X(ST_GeomFromWKB(s2.geometry))"
-            lat2 = "ST_Y(ST_GeomFromWKB(s2.geometry))"
     except Exception as e:
         print(f"Error inspecting stops table: {e}")
         con.close()
         sys.exit(1)
 
+    lat_proj = (
+        "s.stop_lat" if "stop_lat" in col_names else "ST_Y(ST_GeomFromWKB(s.geometry))"
+    )
+    lon_proj = (
+        "s.stop_lon" if "stop_lon" in col_names else "ST_X(ST_GeomFromWKB(s.geometry))"
+    )
+
     query = f"""
     CREATE OR REPLACE TABLE estimated_positions AS
-    WITH journey_legs AS (
+    WITH enriched_calls AS (
+        SELECT
+            c.*,
+            {lat_proj} as stop_lat,
+            {lon_proj} as stop_lon,
+            FIRST_VALUE(c.call_index) OVER (
+                PARTITION BY c.journey_ref ORDER BY c.call_index
+            ) as first_idx,
+            LAST_VALUE(c.call_index) OVER (
+                PARTITION BY c.journey_ref ORDER BY c.call_index
+                ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+            ) as last_idx
+        FROM calls c
+        JOIN stops s ON c.stop_ref = s.stop_id
+    ),
+    in_transit AS (
         SELECT
             c1.journey_ref,
             c1.line_ref,
             c1.line_name,
-            c1.departure_time::TIMESTAMPTZ as t1,
-            c2.arrival_time::TIMESTAMPTZ as t2,
-            {lon1} as lon1,
-            {lat1} as lat1,
-            {lon2} as lon2,
-            {lat2} as lat2
-        FROM calls c1
-        JOIN calls c2 ON c1.journey_ref = c2.journey_ref
-          AND c1.call_index + 1 = c2.call_index
-        JOIN stops s1 ON c1.stop_ref = s1.stop_id
-        JOIN stops s2 ON c2.stop_ref = s2.stop_id
-        WHERE c1.departure_time IS NOT NULL
-          AND c2.arrival_time IS NOT NULL
-          AND c1.departure_time::TIMESTAMPTZ <= '{now_str}'::TIMESTAMPTZ
-          AND c2.arrival_time::TIMESTAMPTZ >= '{now_str}'::TIMESTAMPTZ
+            c1.stop_lat + (c2.stop_lat - c1.stop_lat) * (
+                epoch('{now_str}'::TIMESTAMPTZ) - epoch(c1.departure_time::TIMESTAMPTZ)
+            ) / NULLIF(
+                epoch(c2.arrival_time::TIMESTAMPTZ) -
+                epoch(c1.departure_time::TIMESTAMPTZ), 0
+            ) as lat,
+            c1.stop_lon + (c2.stop_lon - c1.stop_lon) * (
+                epoch('{now_str}'::TIMESTAMPTZ) - epoch(c1.departure_time::TIMESTAMPTZ)
+            ) / NULLIF(
+                epoch(c2.arrival_time::TIMESTAMPTZ) -
+                epoch(c1.departure_time::TIMESTAMPTZ), 0
+            ) as lon,
+            'IN_TRANSIT' as status,
+            FALSE as is_stationary
+        FROM enriched_calls c1
+        JOIN enriched_calls c2 ON
+            c1.journey_ref = c2.journey_ref AND
+            c1.call_index + 1 = c2.call_index
+        WHERE '{now_str}'::TIMESTAMPTZ > c1.departure_time::TIMESTAMPTZ
+          AND '{now_str}'::TIMESTAMPTZ < c2.arrival_time::TIMESTAMPTZ
+    ),
+    at_stop AS (
+        SELECT
+            journey_ref,
+            line_ref,
+            line_name,
+            stop_lat as lat,
+            stop_lon as lon,
+            'AT_STOP' as status,
+            TRUE as is_stationary
+        FROM enriched_calls
+        WHERE '{now_str}'::TIMESTAMPTZ >= arrival_time::TIMESTAMPTZ
+          AND '{now_str}'::TIMESTAMPTZ <= departure_time::TIMESTAMPTZ
+    ),
+    at_start AS (
+        SELECT
+            journey_ref,
+            line_ref,
+            line_name,
+            stop_lat as lat,
+            stop_lon as lon,
+            'AT_START' as status,
+            TRUE as is_stationary
+        FROM enriched_calls
+        WHERE call_index = first_idx
+          AND '{now_str}'::TIMESTAMPTZ >= (
+            COALESCE(arrival_time::TIMESTAMPTZ, departure_time::TIMESTAMPTZ) -
+            INTERVAL 3 MINUTE
+          )
+          AND '{now_str}'::TIMESTAMPTZ < COALESCE(
+            arrival_time::TIMESTAMPTZ, departure_time::TIMESTAMPTZ
+          )
+    ),
+    at_end AS (
+        SELECT
+            journey_ref,
+            line_ref,
+            line_name,
+            stop_lat as lat,
+            stop_lon as lon,
+            'AT_END' as status,
+            TRUE as is_stationary
+        FROM enriched_calls
+        WHERE call_index = last_idx
+          AND '{now_str}'::TIMESTAMPTZ > COALESCE(
+            departure_time::TIMESTAMPTZ, arrival_time::TIMESTAMPTZ
+          )
+          AND '{now_str}'::TIMESTAMPTZ <= (
+            COALESCE(departure_time::TIMESTAMPTZ, arrival_time::TIMESTAMPTZ) +
+            INTERVAL 3 MINUTE
+          )
     )
-    SELECT
-        journey_ref,
-        line_ref,
-        line_name,
-        lat1 + (lat2 - lat1) * (epoch('{now_str}'::TIMESTAMPTZ) - epoch(t1))
-            / NULLIF(epoch(t2) - epoch(t1), 0) as lat,
-        lon1 + (lon2 - lon1) * (epoch('{now_str}'::TIMESTAMPTZ) - epoch(t1))
-            / NULLIF(epoch(t2) - epoch(t1), 0) as lon,
-        '{now_str}'::TIMESTAMPTZ as estimated_at
-    FROM journey_legs
+    SELECT *, '{now_str}'::TIMESTAMPTZ as estimated_at FROM in_transit
+    UNION ALL SELECT *, '{now_str}'::TIMESTAMPTZ as estimated_at FROM at_stop
+    UNION ALL SELECT *, '{now_str}'::TIMESTAMPTZ as estimated_at FROM at_start
+    UNION ALL SELECT *, '{now_str}'::TIMESTAMPTZ as estimated_at FROM at_end
     """
 
     con.execute(query)
@@ -188,7 +249,14 @@ def main():
 
     if not result_df.empty:
         print("\nFirst 10 estimates:")
-        cols_to_print = ["line_name", "lat", "lon", "journey_ref"]
+        cols_to_print = [
+            "line_name",
+            "status",
+            "is_stationary",
+            "lat",
+            "lon",
+            "journey_ref",
+        ]
         print(result_df[cols_to_print].head(10).to_string(index=False))
     else:
         print("No estimates found for the current time.")
