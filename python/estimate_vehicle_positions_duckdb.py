@@ -5,16 +5,23 @@
 #   "pandas",
 #   "pyarrow",
 #   "requests",
+#   "geojson",
+#   "pytz",
 # ]
 # ///
 
+
 import datetime
+import json
 import sys
 from pathlib import Path
 
 import duckdb
 import pandas as pd
 import requests
+
+DB_PATH = "data/vehicle_positions.db"
+OUT_PATH = "data/entur_et/positions.geojson"
 
 
 def fetch_siri_et(dataset_id="RUT"):
@@ -74,6 +81,58 @@ def parse_siri_et_to_df(siri_json):
                         }
                     )
     return pd.DataFrame(rows)
+
+def export():
+    con = duckdb.connect(DB_PATH, read_only=True)
+
+    rows = con.execute("""
+        SELECT
+            journey_ref,
+            line_ref,
+            line_name,
+            lat,
+            lon,
+            estimated_at
+        FROM (
+            SELECT *,
+                ROW_NUMBER() OVER (
+                    PARTITION BY journey_ref
+                    ORDER BY estimated_at DESC
+                ) AS rn
+            FROM estimated_positions
+        )
+        WHERE rn = 1
+          AND lat IS NOT NULL
+          AND lon IS NOT NULL
+    """).fetchall()
+
+    con.close()
+
+    features = []
+    for journey_ref, line_ref, line_name, lat, lon, estimated_at in rows:
+        features.append({
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [lon, lat]
+            },
+            "properties": {
+                "journey_ref": journey_ref,
+                "line_ref": line_ref,
+                "line_name": line_name or "",
+                "estimated_at": estimated_at.isoformat() if estimated_at else None,
+                "mode": "bus"  # expand later based on line_ref prefix
+            }
+        })
+
+    geojson = {
+        "type": "FeatureCollection",
+        "features": features
+    }
+    Path(OUT_PATH).parent.mkdir(parents=True, exist_ok=True)
+    Path(OUT_PATH).write_text(json.dumps(geojson, ensure_ascii=False, indent=2))
+    print(f"Exported {len(features)} vehicles to {OUT_PATH}")
+
 
 
 def main():
@@ -194,6 +253,8 @@ def main():
         print("No estimates found for the current time.")
 
     con.close()
+
+    export()
 
 
 if __name__ == "__main__":
