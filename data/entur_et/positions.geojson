@@ -1,0 +1,617 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.917210030582174,
+          59.99714209451752
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:d7aa1367665260c6e10fc1f0b98bd944",
+        "line_ref": "RUT:Line:2390",
+        "line_name": "RUT:Line:2390",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.643188265490341,
+          59.66663861045189
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:f2683473304900876dd6abc3d487fcb2",
+        "line_ref": "RUT:Line:561",
+        "line_name": "RUT:Line:561",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.803134634521294,
+          59.92850359335308
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:d2334b19e51d8c6aa8b682fd7c380511",
+        "line_ref": "RUT:Line:4",
+        "line_name": "RUT:Line:4",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.906247103726322,
+          59.962213810511145
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:a6da6098ac91945942ad7c6392334ed5",
+        "line_ref": "RUT:Line:4",
+        "line_name": "RUT:Line:4",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.901298073542405,
+          59.962267684858894
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:67b8b3e46cb5923f96c597a7011bac12",
+        "line_ref": "RUT:Line:4",
+        "line_name": "RUT:Line:4",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.869372204239273,
+          59.956468014762244
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:035247ddfb43a3bef647af55111b5936",
+        "line_ref": "RUT:Line:5",
+        "line_name": "RUT:Line:5",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          11.04907827007103,
+          59.9585131731685
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:61d61ba000a2d29d1ff0cd9e40dbcb1a",
+        "line_ref": "RUT:Line:340",
+        "line_name": "RUT:Line:340",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.841345292847825,
+          59.872211689356554
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:1abe4c08aed6363b927037eafbc079c0",
+        "line_ref": "RUT:Line:3",
+        "line_name": "RUT:Line:3",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.800900195326742,
+          59.92880117765935
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:1df1bf007aa64361d3cd19769b792b56",
+        "line_ref": "RUT:Line:4",
+        "line_name": "RUT:Line:4",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.812723442831857,
+          59.90895509294515
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:c14b743f4bf679d5d8e0a056abfad4b3",
+        "line_ref": "RUT:Line:4",
+        "line_name": "RUT:Line:4",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.79469270991174,
+          59.91317232481976
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:d1e0f8d827a85dd85403f2dcf5b174ce",
+        "line_ref": "RUT:Line:3",
+        "line_name": "RUT:Line:3",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.758433972972997,
+          59.948979186077246
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:1525360b3501f968f073dece9619abff",
+        "line_ref": "RUT:Line:5",
+        "line_name": "RUT:Line:5",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.827428358911346,
+          59.90999366613842
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:1364c0eba59bbfd0350cb1c89667c763",
+        "line_ref": "RUT:Line:2",
+        "line_name": "RUT:Line:2",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.742353344359339,
+          59.947575567361106
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:1b607ba90fa8348ccadfabe9abf691b5",
+        "line_ref": "RUT:Line:5",
+        "line_name": "RUT:Line:5",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.746035826759682,
+          59.95837072833057
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:821432341dc8224f537de2b06b545f74",
+        "line_ref": "RUT:Line:5",
+        "line_name": "RUT:Line:5",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.750566710053253,
+          59.95600517608846
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:4c0414f9c787d747171a02695f4dc56f",
+        "line_ref": "RUT:Line:5",
+        "line_name": "RUT:Line:5",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.736719922253673,
+          59.96140203032366
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:3689439a67284b60f8a72877c674aa57",
+        "line_ref": "RUT:Line:25",
+        "line_name": "RUT:Line:25",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.708978285644276,
+          59.94641016425502
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:2221ce9b71190f7fc08e38a3c5400edb",
+        "line_ref": "RUT:Line:1",
+        "line_name": "RUT:Line:1",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.702450013985317,
+          59.948673566295625
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:3d91896c553eebb3d5915a95e79962ad",
+        "line_ref": "RUT:Line:1",
+        "line_name": "RUT:Line:1",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.640577452812195,
+          59.948519357166035
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:6517c42a4e714da8d95146e48102dbec",
+        "line_ref": "RUT:Line:2",
+        "line_name": "RUT:Line:2",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.774303959033077,
+          59.91560289606673
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:d362cf3acfceb44f1272c75cc5f245bd",
+        "line_ref": "RUT:Line:5",
+        "line_name": "RUT:Line:5",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.695700085680961,
+          59.9346588068196
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:7d8e13557c82f658541cf42a048115e8",
+        "line_ref": "RUT:Line:3",
+        "line_name": "RUT:Line:3",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.800134566875967,
+          59.91280248233668
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:7d3d07356485aa7e6e1fbf6501af0a36",
+        "line_ref": "RUT:Line:3",
+        "line_name": "RUT:Line:3",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.758481926165517,
+          59.91272221623052
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:da0cc5864e3cfdb303add2a6d3dbd721",
+        "line_ref": "RUT:Line:1",
+        "line_name": "RUT:Line:1",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.800610602908007,
+          59.8527993983935
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:5ec7b2aaae405ed274047941cd382af6",
+        "line_ref": "RUT:Line:79",
+        "line_name": "RUT:Line:79",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.46561660512244,
+          59.81601383999608
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:4d58d92172e271960d093dda0a347d2f",
+        "line_ref": "RUT:Line:290",
+        "line_name": "RUT:Line:290",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.580996806741588,
+          59.91523406056639
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:15b41064822328538ab2e9ba3400b2ea",
+        "line_ref": "RUT:Line:3",
+        "line_name": "RUT:Line:3",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.609575985369364,
+          59.95387753259125
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:5efd275219b831132c287a725ea32b6d",
+        "line_ref": "RUT:Line:235",
+        "line_name": "RUT:Line:235",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.742176628973834,
+          59.91365751175842
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:9589a9be8e800ec6ba6a35f5125dd741",
+        "line_ref": "RUT:Line:5",
+        "line_name": "RUT:Line:5",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.51225980808576,
+          59.90883260147222
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:c68210ae22d5da93da99674bd6fe53d7",
+        "line_ref": "RUT:Line:2210",
+        "line_name": "RUT:Line:2210",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.734775298550218,
+          59.914874527604965
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:be082b9b810a79ee9d1214f6a0092ff9",
+        "line_ref": "RUT:Line:2",
+        "line_name": "RUT:Line:2",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.714801579569752,
+          59.931229395853485
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:bd50e97c24e6b9a4cb2ac13607e29621",
+        "line_ref": "RUT:Line:4",
+        "line_name": "RUT:Line:4",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.464273724042002,
+          59.85639740702985
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:00e3e41250cb1c6da6b8dcd94feddf38",
+        "line_ref": "RUT:Line:270",
+        "line_name": "RUT:Line:270",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          11.022756234205628,
+          60.00337986645355
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:2e3734e7a19d58991d2f697473352c27",
+        "line_ref": "RUT:Line:340",
+        "line_name": "RUT:Line:340",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.929268767724356,
+          59.75785610529328
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:9c5e7c37316c3ee0045ee477b7566e21",
+        "line_ref": "RUT:Line:515",
+        "line_name": "RUT:Line:515",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          10.862325856798808,
+          59.72257435459048
+        ]
+      },
+      "properties": {
+        "journey_ref": "RUT:ServiceJourney:fd47a7b74599d3a6396d73487ad475dc",
+        "line_ref": "RUT:Line:515",
+        "line_name": "RUT:Line:515",
+        "estimated_at": "2026-03-30T07:06:11.507164+02:00",
+        "mode": "bus"
+      }
+    }
+  ]
+}
