@@ -190,6 +190,7 @@
           coordinates: f.geometry.coordinates,
           journey_ref: f.properties.journey_ref,
           line_ref: f.properties.line_ref,
+          time_diff_seconds: f.properties.time_diff_seconds,
           line_name: f.properties.line_name,
           estimated_at: f.properties.estimated_at,
           mode: f.properties.mode || "bus"
@@ -255,6 +256,7 @@
         <div class="tline">${object.line_name || object.line_ref || "—"}</div>
         <div class="trow">Journey: <span>${object.journey_ref || "—"}</span></div>
         <div class="trow">Line ref: <span>${object.line_ref || "—"}</span></div>
+        <div class="trow">Time diff: <span>${object.time_diff_seconds || "—"}</span></div>
         <div class="trow">Updated: <span>${age}</span></div>
       `;
       tooltip.style.display = "block";

@@ -90,6 +90,7 @@ def export():
             journey_ref,
             line_ref,
             line_name,
+            time_diff_seconds,
             lat,
             lon,
             estimated_at
@@ -109,7 +110,7 @@ def export():
     con.close()
 
     features = []
-    for journey_ref, line_ref, line_name, lat, lon, estimated_at in rows:
+    for journey_ref, line_ref, line_name, time_diff_seconds, lat, lon, estimated_at in rows:
         features.append({
             "type": "Feature",
             "geometry": {
@@ -120,6 +121,7 @@ def export():
                 "journey_ref": journey_ref,
                 "line_ref": line_ref,
                 "line_name": line_name or "",
+                "time_diff_seconds": time_diff_seconds,
                 "estimated_at": estimated_at.isoformat() if estimated_at else None,
                 "mode": "bus"  # expand later based on line_ref prefix
             }
@@ -223,6 +225,10 @@ def main():
             c1.journey_ref,
             c1.line_ref,
             c1.line_name,
+            NULLIF(
+                epoch(c2.arrival_time::TIMESTAMPTZ) -
+                epoch(c1.departure_time::TIMESTAMPTZ), 0
+            ) as time_diff_seconds,
             c1.stop_lat + (c2.stop_lat - c1.stop_lat) * (
                 epoch('{now_str}'::TIMESTAMPTZ) - epoch(c1.departure_time::TIMESTAMPTZ)
             ) / NULLIF(
@@ -249,6 +255,7 @@ def main():
             journey_ref,
             line_ref,
             line_name,
+            0 as time_diff_seconds,
             stop_lat as lat,
             stop_lon as lon,
             'AT_STOP' as status,
@@ -262,6 +269,7 @@ def main():
             journey_ref,
             line_ref,
             line_name,
+            0 as time_diff_seconds,
             stop_lat as lat,
             stop_lon as lon,
             'AT_START' as status,
@@ -281,6 +289,7 @@ def main():
             journey_ref,
             line_ref,
             line_name,
+            0 as time_diff_seconds,
             stop_lat as lat,
             stop_lon as lon,
             'AT_END' as status,
@@ -312,6 +321,7 @@ def main():
             "line_name",
             "status",
             "is_stationary",
+            "time_diff_seconds",
             "lat",
             "lon",
             "journey_ref",
