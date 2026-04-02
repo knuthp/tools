@@ -9,6 +9,7 @@ node_modules/
 _build/
 data/vehicle_positions.db
 data/stops.parquet
+data/entur_et/siri_et.duckdb
 
 # wrangler files
 .wrangler
