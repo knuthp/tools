@@ -10,6 +10,7 @@ _build/
 data/vehicle_positions.db
 data/stops.parquet
 data/entur_et/siri_et.duckdb
+data/entur_et/*.geojson
 
 # wrangler files
 .wrangler
