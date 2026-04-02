@@ -17,6 +17,7 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Entur Stops Map](./entur_stops_deckgl.html) Map of transit stops loaded from Parquet using DuckDB-Wasm and Deck.gl.
 * [AIS Trips Animation](./ais_trips.html) Animate a day of AIS vessel traffic using Deck.gl and DuckDB-Wasm.
 * [Entur Trips Animation](./entur_trips.html) Animate a day of Entur vehicle monitoring traffic using Deck.gl and DuckDB-Wasm.
+* [Entur ET Brakar](./entur_et_interpolate.html) Entur Real-Time map for Brakar based on SIRI stop info and interpolation
 
 ### DNT cabins, trips, etc
 
