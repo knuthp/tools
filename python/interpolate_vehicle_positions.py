@@ -12,6 +12,7 @@ import datetime
 import json
 import sys
 from pathlib import Path
+import zoneinfo
 
 import duckdb
 
@@ -42,9 +43,10 @@ def main():
             print(f"Invalid time format: {e}")
             sys.exit(1)
     else:
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(tz=zoneinfo.ZoneInfo("Europe/Oslo"))
 
     now_str = now.isoformat()
+    print(f"Interpolating vehicle positions for time: {now_str}")
 
     db_path = Path(DUCKDB_PATH)
     if not db_path.exists():
@@ -91,7 +93,8 @@ def main():
             LAST_VALUE("order") OVER (
                 PARTITION BY dataframe_ref, dated_vehicle_journey_ref ORDER BY "order"
                 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-            ) as last_order
+            ) as last_order,
+            s.stop_name as stop_name
         FROM calls c
         JOIN stops s ON c.stop_point_ref = s.stop_id
     ),
@@ -101,17 +104,16 @@ def main():
             c1.dated_vehicle_journey_ref as journey_ref,
             c1.line_ref,
             c1.vehicle_ref,
-            c1.stop_lat + (c2.stop_lat - c1.stop_lat) * (
-                epoch('{now_str}'::TIMESTAMPTZ) - epoch(c1.departure_time)
+            (
+                epoch('{now_str}'::TIMESTAMP) - epoch(c1.departure_time)
             ) / NULLIF(
                 epoch(c2.arrival_time) - epoch(c1.departure_time), 0
-            ) as lat,
-            c1.stop_lon + (c2.stop_lon - c1.stop_lon) * (
-                epoch('{now_str}'::TIMESTAMPTZ) - epoch(c1.departure_time)
-            ) / NULLIF(
-                epoch(c2.arrival_time) - epoch(c1.departure_time), 0
-            ) as lon,
+            ) as progress,
+            c1.stop_lat + (c2.stop_lat - c1.stop_lat) * progress as lat,
+            c1.stop_lon + (c2.stop_lon - c1.stop_lon) * progress as lon,
             'IN_TRANSIT' as status,
+            c1.stop_name,
+            c2.stop_name as next_stop_name,
             FALSE as is_stationary
         FROM enriched_calls c1
         JOIN enriched_calls c2 ON
@@ -119,8 +121,8 @@ def main():
             c1.dated_vehicle_journey_ref = c2.dated_vehicle_journey_ref AND
             c1."order" < c2."order"
         -- Find the two consecutive stops where the vehicle is currently between
-        WHERE '{now_str}'::TIMESTAMPTZ > c1.departure_time
-          AND '{now_str}'::TIMESTAMPTZ < c2.arrival_time
+        WHERE '{now_str}'::TIMESTAMP > c1.departure_time
+          AND '{now_str}'::TIMESTAMP < c2.arrival_time
           AND NOT EXISTS (
               SELECT 1 FROM enriched_calls c3
               WHERE c3.dataframe_ref = c1.dataframe_ref
@@ -134,13 +136,16 @@ def main():
             dated_vehicle_journey_ref as journey_ref,
             line_ref,
             vehicle_ref,
+            0 as progress,
             stop_lat as lat,
             stop_lon as lon,
             'AT_STOP' as status,
-            TRUE as is_stationary
+            TRUE as is_stationary,
+            stop_name,
+            '' as next_stop_name
         FROM enriched_calls
-        WHERE '{now_str}'::TIMESTAMPTZ >= arrival_time
-          AND '{now_str}'::TIMESTAMPTZ <= departure_time
+        WHERE '{now_str}'::TIMESTAMP >= arrival_time
+          AND '{now_str}'::TIMESTAMP <= departure_time
     ),
     at_start AS (
         SELECT
@@ -148,16 +153,19 @@ def main():
             dated_vehicle_journey_ref as journey_ref,
             line_ref,
             vehicle_ref,
+            0 as progress,
             stop_lat as lat,
             stop_lon as lon,
             'AT_START' as status,
-            TRUE as is_stationary
+            TRUE as is_stationary,
+            stop_name,
+            '' as next_stop_name
         FROM enriched_calls
         WHERE "order" = first_order
-          AND '{now_str}'::TIMESTAMPTZ >= (
+          AND '{now_str}'::TIMESTAMP >= (
               COALESCE(arrival_time, departure_time) - INTERVAL 5 MINUTE
           )
-          AND '{now_str}'::TIMESTAMPTZ < COALESCE(arrival_time, departure_time)
+          AND '{now_str}'::TIMESTAMP < COALESCE(arrival_time, departure_time)
     ),
     at_end AS (
         SELECT
@@ -165,14 +173,17 @@ def main():
             dated_vehicle_journey_ref as journey_ref,
             line_ref,
             vehicle_ref,
+            0 as progress,
             stop_lat as lat,
             stop_lon as lon,
             'AT_END' as status,
-            TRUE as is_stationary
+            TRUE as is_stationary,
+            stop_name,
+            '' as next_stop_name
         FROM enriched_calls
         WHERE "order" = last_order
-          AND '{now_str}'::TIMESTAMPTZ > COALESCE(departure_time, arrival_time)
-          AND '{now_str}'::TIMESTAMPTZ <= (
+          AND '{now_str}'::TIMESTAMP > COALESCE(departure_time, arrival_time)
+          AND '{now_str}'::TIMESTAMP <= (
               COALESCE(departure_time, arrival_time) + INTERVAL 5 MINUTE
           )
     ),
@@ -209,7 +220,10 @@ def main():
                 "vehicle_ref": row["vehicle_ref"],
                 "status": row["status"],
                 "is_stationary": bool(row["is_stationary"]),
-                "estimated_at": now_str
+                "estimated_at": now_str,
+                "stop_name": row["stop_name"],
+                "next_stop_name": row["next_stop_name"],
+                "progress": row["progress"],
             }
         }
         features.append(feature)
