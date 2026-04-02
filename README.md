@@ -41,3 +41,4 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Entur GTFS to GeoParquet](./python/entur_gtfs_to_geoparquet.py) Python script to download Entur GTFS and convert to (Geo)Parquet. Run with `uv run python/entur_gtfs_to_geoparquet.py`.
 * [AIS to single day feather](./python/fetch_ais_to_arrow.py) Python script to download hugging face AIS data for one day and save as arrow (feather).  Run with `uv run python/fetch_ais_to_arrow.py`
 * [Estimate Vehicle Positions (DuckDB)](./python/estimate_vehicle_positions_duckdb.py) Python script to estimate real-time vehicle positions from SIRI ET data using DuckDB for interpolation. Run with `uv run python/estimate_vehicle_positions_duckdb.py`.
+* [Norge i Bilder to MBTiles](./python/norgeibilder_to_mbtiles.py) Python script and [bookmarklet](./norgeibilder_exporter.js) to export map tiles from Norge i Bilder to an offline MBTiles database.
