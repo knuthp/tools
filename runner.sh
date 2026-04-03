@@ -7,7 +7,8 @@ while true; do
 
   # Every 60 seconds
   if (( now - last_fetch >= 60 )); then
-    uv run python/fetch_et_to_duckdb.py
+    uv run python/fetch_et_to_duckdb.py --dataset-id=RUT
+    uv run python/fetch_et_to_duckdb.py --dataset-id=BRA
     last_fetch=$now
   fi
 
