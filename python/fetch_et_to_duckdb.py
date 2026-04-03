@@ -16,7 +16,6 @@ import duckdb
 import pandas as pd
 import requests
 
-
 DATASET_ID_DEFAULT = "RUT"
 CLIENT_NAME = "pub-sparetider-et-duckdb"
 DUCKDB_PATH = "data/entur_et/siri_et.duckdb"
@@ -243,6 +242,39 @@ def upsert_calls(con, rows):
     con.unregister("staging_df")
 
 
+def run_fetch(dataset_id=DATASET_ID_DEFAULT, con=None):
+    """
+    Fetch SIRI ET data and store in DuckDB.
+    If con is provided, it uses that connection and does NOT close it.
+    """
+    # Ensure output directory exists
+    db_path = Path(DUCKDB_PATH)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    siri_data = fetch_siri_et(dataset_id)
+    rows = extract_calls(siri_data)
+    print(f"Extracted {len(rows)} calls for {dataset_id}.")
+
+    if not rows:
+        print(f"No calls found in the response for {dataset_id}.")
+        return
+
+    should_close = False
+    if con is None:
+        con = duckdb.connect(str(db_path))
+        should_close = True
+
+    try:
+        init_db(con)
+        upsert_calls(con, rows)
+
+        count = con.execute("SELECT count(*) FROM calls").fetchone()[0]
+        print(f"Total calls in database after {dataset_id}: {count}")
+    finally:
+        if should_close:
+            con.close()
+
+
 def main():
     desc = "Fetch SIRI ET data and store in DuckDB."
     parser = argparse.ArgumentParser(description=desc)
@@ -253,27 +285,8 @@ def main():
     )
     args = parser.parse_args()
 
-    # Ensure output directory exists
-    db_path = Path(DUCKDB_PATH)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
     try:
-        siri_data = fetch_siri_et(args.dataset_id)
-        rows = extract_calls(siri_data)
-        print(f"Extracted {len(rows)} calls.")
-
-        if not rows:
-            print("No calls found in the response.")
-            return
-
-        con = duckdb.connect(str(db_path))
-        init_db(con)
-        upsert_calls(con, rows)
-
-        count = con.execute("SELECT count(*) FROM calls").fetchone()[0]
-        print(f"Total calls in database: {count}")
-        con.close()
-
+        run_fetch(args.dataset_id)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         print(f"Critical error occurred: {e}")

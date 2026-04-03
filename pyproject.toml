@@ -5,6 +5,10 @@ dependencies = [
     "playwright",
     "fastapi",
     "uvicorn",
+    "duckdb",
+    "requests",
+    "pandas",
+    "pyarrow",
 ]
 
 [tool.ruff]
