@@ -17,7 +17,7 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Entur Stops Map](./entur_stops_deckgl.html) Map of transit stops loaded from Parquet using DuckDB-Wasm and Deck.gl.
 * [AIS Trips Animation](./ais_trips.html) Animate a day of AIS vessel traffic using Deck.gl and DuckDB-Wasm.
 * [Entur Trips Animation](./entur_trips.html) Animate a day of Entur vehicle monitoring traffic using Deck.gl and DuckDB-Wasm.
-* [Entur ET Brakar](./entur_et_interpolate.html) Entur Real-Time map for Brakar based on SIRI stop info and interpolation
+* [Entur ET Ruter+Brakar](./entur_et_interpolate.html) Entur Real-Time map for Ruter and Brakar based on SIRI stop info and interpolation
 
 ### DNT cabins, trips, etc
 
@@ -42,3 +42,11 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Entur GTFS to GeoParquet](./python/entur_gtfs_to_geoparquet.py) Python script to download Entur GTFS and convert to (Geo)Parquet. Run with `uv run python/entur_gtfs_to_geoparquet.py`.
 * [AIS to single day feather](./python/fetch_ais_to_arrow.py) Python script to download hugging face AIS data for one day and save as arrow (feather).  Run with `uv run python/fetch_ais_to_arrow.py`
 * [Estimate Vehicle Positions (DuckDB)](./python/estimate_vehicle_positions_duckdb.py) Python script to estimate real-time vehicle positions from SIRI ET data using DuckDB for interpolation. Run with `uv run python/estimate_vehicle_positions_duckdb.py`.
+
+#### Entur pipelines
+* [Entur fetch Estimated Timetable into duckdb](./python/fetch_et_to_duckdb.py) Fetch real time Estimated Timetable data from Entur and store in duckdb table (both EstimatedCalls and RecordedCalls) `uv run python/fetch_et_to_duckdb.py --dataset-id=RUT`
+* [Entur interpolate Estimated Timetable between stop points](./python/interpolate_vehicle_positions.py)Finds where vehicle by interpolating between last and next stop. Uses straight line between stops. (uv run python/interpolate_vehicle_positions.py)
+
+
+## Backend
+[FastAPI backend](./python/api.py) Simple backend for services needing that. Currently serving Entur interpolated vehicle positions.
