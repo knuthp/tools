@@ -85,13 +85,13 @@
 
   <div id="controls">
     <button id="btn-refresh" onclick="loadData()">⟳ Refresh</button>
-    <button id="btn-auto" onclick="toggleAuto()">▶ Auto (3s)</button>
+    <button id="btn-auto" class="active" onclick="toggleAuto()">⏸ Auto (3s)</button>
   </div>
 
   <script>
     let data = [];
 
-    const GEOJSON_URL = "data/entur_et/positions_interpolated.geojson";
+    const GEOJSON_URL = "https://toolsapi.knuthp.no/data/entur_et/positions_interpolated.geojson";
     const REFRESH_INTERVAL = 3000;
 
     // --- SVG icon atlas ---
@@ -176,7 +176,7 @@
     map.addControl(deckOverlay);
 
     // --- State ---
-    let autoTimer = null;
+    let autoTimer = setInterval(loadData, REFRESH_INTERVAL);;
 
     // --- Load GeoJSON ---
     async function loadData() {
