@@ -3,6 +3,8 @@ name = "tools-collection"
 version = "1.0.0"
 dependencies = [
     "playwright",
+    "fastapi",
+    "uvicorn",
 ]
 
 [tool.ruff]

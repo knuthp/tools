@@ -16,7 +16,8 @@ import duckdb
 import pandas as pd
 import requests
 
-DATASET_ID_DEFAULT = "BRA"
+
+DATASET_ID_DEFAULT = "RUT"
 CLIENT_NAME = "pub-sparetider-et-duckdb"
 DUCKDB_PATH = "data/entur_et/siri_et.duckdb"
 
