@@ -75,6 +75,7 @@ app.add_middleware(
     allow_origins=[
         "https://tools.knuthp.no",
         "https://knuthp.github.io",
+        "http://ptest.knuthp.no:8090"
     ],
     allow_origin_regex=r"https://.*\.knuthp\.workers\.dev",
     allow_methods=["*"],
