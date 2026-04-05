@@ -41,9 +41,9 @@
 Extract VEHICLE_MONITORING data from PostgreSQL into a Parquet file for a given ISO week.
 
 Usage:
-    python extract_vehicle_monitoring.py --year 2024 --week 23
-    python extract_vehicle_monitoring.py --year 2024 --week 23 --output-dir /data/parquet
-    python extract_vehicle_monitoring.py --year 2024 --week 23 --conn "postgresql://user:pass@host:5432/dbname"
+    python fetch_pub_history_to_geparquet.py --year 2024 --week 23
+    python fetch_pub_history_to_geparquet.py --year 2024 --week 23 --output-dir /data/parquet
+    python fetch_pub_history_to_geparquet.py --year 2024 --week 23 --conn "postgresql://user:pass@host:5432/dbname"
 """
 
 import argparse
