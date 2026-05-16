@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Norway Real Estate Transactions</title>
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        #controls { padding: 10px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        #main-container { flex: 1; display: flex; overflow: hidden; }
+        #map-container { flex: 2; position: relative; }
+        #table-container { flex: 1.5; overflow-y: auto; border-left: 1px solid #dee2e6; background: white; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { position: sticky; top: 0; background: #eee; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; z-index: 1; }
+        td { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
+        tr:hover { background-color: #f1f1f1; }
+        tr.selected { background-color: #e3f2fd; }
+        .loading-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.7); display: flex; justify-content: center; align-items: center;
+            z-index: 1000; display: none;
+        }
+        #tooltip {
+            position: absolute; z-index: 1001; pointer-events: none; background: white;
+            padding: 10px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: none; font-size: 12px; max-width: 250px;
+        }
+        .price { font-weight: bold; color: #2c7be5; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div>
+            <label for="start-date">From:</label>
+            <input type="date" id="start-date">
+        </div>
+        <div>
+            <label for="end-date">To:</label>
+            <input type="date" id="end-date">
+        </div>
+        <button id="fetch-button">Update Data</button>
+        <div id="status">Loading...</div>
+    </div>
+    <div id="main-container">
+        <div id="map-container">
+            <div id="map"></div>
+            <div id="loading" class="loading-overlay">Updating map...</div>
+            <div id="tooltip"></div>
+        </div>
+        <div id="table-container">
+            <table id="transaction-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Price</th>
+                        <th>Type</th>
+                        <th>Address</th>
+                        <th>Sellers</th>
+                        <th>Buyers</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module">
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const fetchButton = document.getElementById('fetch-button');
+        const statusEl = document.getElementById('status');
+        const tableBody = document.getElementById('table-body');
+        const loadingEl = document.getElementById('loading');
+        const tooltip = document.getElementById('tooltip');
+
+        // Set default dates: today and 3 months ago
+        const today = new Date();
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(today.getMonth() - 3);
+
+        startDateInput.value = threeMonthsAgo.toISOString().split('T')[0];
+        endDateInput.value = today.toISOString().split('T')[0];
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://tiles.openfreemap.org/styles/liberty',
+            center: [10.5, 59.85], // Approx center for Budstikka area
+            zoom: 11,
+            pitch: 45
+        });
+
+        const deckOverlay = new deck.MapboxOverlay({
+            interleaved: true,
+            layers: []
+        });
+
+        map.addControl(deckOverlay);
+
+        map.on('load', () => {
+            // Find the vector source name (usually 'openmaptiles' or 'openfreemap')
+            const sources = map.getStyle().sources;
+            const sourceName = Object.keys(sources).find(s => sources[s].type === 'vector');
+
+            if (sourceName) {
+                map.addLayer({
+                    'id': '3d-buildings',
+                    'source': sourceName,
+                    'source-layer': 'building',
+                    'filter': ['==', 'extrude', 'true'],
+                    'type': 'fill-extrusion',
+                    'minzoom': 15,
+                    'paint': {
+                        'fill-extrusion-color': '#aaa',
+                        'fill-extrusion-height': ['get', 'height'],
+                        'fill-extrusion-base': ['get', 'min_height'],
+                        'fill-extrusion-opacity': 0.6
+                    }
+                });
+            }
+            fetchData();
+        });
+
+        let transactions = [];
+        let selectedId = null;
+
+        async function fetchData() {
+            const start = startDateInput.value;
+            const end = endDateInput.value;
+
+            statusEl.innerText = 'Fetching data...';
+            loadingEl.style.display = 'flex';
+
+            const fields = '(propertyId,municipality,imageUrl,sellerList,buyerList,cadestralId,groupCount,housingCoopName,saleType,saleId,price,date,includesBuilding,propertyArea,livingArea,postalCode,postalArea,streetName,houseNumber,houseLetter,county,countyCode,region,municipalityCode,boroughCode,citySector,cityArea,geometry,propertyType,buildingType,attachedTransactions,withdrawn)';
+            const url = `https://services.api.no/api/acies/v1/custom/PropcloudLegacyTransaction?greaterThanOrEqual=date%3A${start}&lessThan=date%3A${end}&limit=25000&sortBy=date&sortDirection=desc&fields=${encodeURIComponent(fields)}&notEqual=saleType%3AUskiftebevilling&inPolygon=geometry%3Alocal_realestate_area%3Abudsti&equal=propertyType%3ABolig`;
+
+            try {
+                const response = await fetch(url);
+                transactions = await response.json();
+                statusEl.innerText = `Found ${transactions.length} transactions`;
+                renderData();
+            } catch (err) {
+                console.error(err);
+                statusEl.innerText = 'Error fetching data';
+            } finally {
+                loadingEl.style.display = 'none';
+            }
+        }
+
+        function renderData() {
+            renderMap();
+            renderTable();
+        }
+
+        function renderMap() {
+            const layer = new deck.ScatterplotLayer({
+                id: 'transactions-layer',
+                data: transactions,
+                getPosition: d => [d.geometry.x, d.geometry.y],
+                getFillColor: d => d.saleId === selectedId ? [255, 0, 0, 200] : [44, 123, 229, 180],
+                getRadius: 20,
+                radiusMinPixels: 5,
+                radiusMaxPixels: 15,
+                pickable: true,
+                autoHighlight: true,
+                onHover: info => {
+                    if (info.object) {
+                        const d = info.object;
+                        const date = new Date(d.date).toLocaleDateString();
+                        const price = new Intl.NumberFormat('no-NO', { style: 'currency', currency: 'NOK', maximumFractionDigits: 0 }).format(d.price);
+                        tooltip.innerHTML = `
+                            <strong>${d.streetName} ${d.houseNumber || ''}${d.houseLetter || ''}</strong><br>
+                            Price: <span class="price">${price}</span><br>
+                            Date: ${date}<br>
+                            Type: ${d.propertyType}<br>
+                            Sellers: ${parseList(d.sellerList)}<br>
+                            Buyers: ${parseList(d.buyerList)}
+                        `;
+                        tooltip.style.display = 'block';
+                        tooltip.style.left = `${info.x + 10}px`;
+                        tooltip.style.top = `${info.y + 10}px`;
+                    } else {
+                        tooltip.style.display = 'none';
+                    }
+                },
+                onClick: info => {
+                    if (info.object) {
+                        selectTransaction(info.object.saleId, true);
+                    }
+                },
+                updateTriggers: {
+                    getFillColor: [selectedId]
+                }
+            });
+
+            deckOverlay.setProps({ layers: [layer] });
+        }
+
+        function renderTable() {
+            tableBody.innerHTML = '';
+            transactions.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.id = `row-${d.saleId}`;
+                if (d.saleId === selectedId) tr.classList.add('selected');
+
+                const date = new Date(d.date).toLocaleDateString();
+                const price = new Intl.NumberFormat('no-NO', { style: 'currency', currency: 'NOK', maximumFractionDigits: 0 }).format(d.price);
+                const address = `${d.streetName} ${d.houseNumber || ''}${d.houseLetter || ''}, ${d.postalArea}`;
+
+                tr.innerHTML = `
+                    <td>${date}</td>
+                    <td class="price">${price}</td>
+                    <td>${d.propertyType}</td>
+                    <td>${address}</td>
+                    <td>${parseList(d.sellerList)}</td>
+                    <td>${parseList(d.buyerList)}</td>
+                `;
+
+                tr.onclick = () => selectTransaction(d.saleId, false);
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function selectTransaction(saleId, fromMap) {
+            selectedId = saleId;
+            renderMap();
+
+            // Highlight table row
+            const rows = tableBody.querySelectorAll('tr');
+            rows.forEach(r => r.classList.remove('selected'));
+            const selectedRow = document.getElementById(`row-${saleId}`);
+            if (selectedRow) {
+                selectedRow.classList.add('selected');
+                if (fromMap) {
+                    selectedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            // Fly map to location
+            if (!fromMap) {
+                const t = transactions.find(d => d.saleId === saleId);
+                if (t) {
+                    map.flyTo({
+                        center: [t.geometry.x, t.geometry.y],
+                        zoom: 16,
+                        essential: true
+                    });
+                }
+            }
+        }
+
+        function parseList(listStr) {
+            try {
+                const arr = JSON.parse(listStr);
+                return Array.isArray(arr) ? arr.join(', ') : listStr;
+            } catch {
+                return listStr;
+            }
+        }
+
+        fetchButton.onclick = fetchData;
+    </script>
+</body>
+</html>
