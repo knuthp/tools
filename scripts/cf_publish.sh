@@ -12,13 +12,24 @@ mkdir -p _build
 echo "Copying HTML files and data directory (max size 25MB)..."
 
 # Copy HTML files from root (excluding those already in _build or other dirs)
-# We use -L to follow symlinks if any, though probably not needed here.
-rsync -am --max-size=25m --include="/*.html" --exclude="*" . _build/
+find . -maxdepth 1 -name "*.html" -not -path "./_build/*" | while read -r f; do
+    size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+    if [ "$size" -le 26214400 ]; then  # 25MB in bytes
+        cp "$f" _build/
+    fi
+done
 
 # Copy data directory (preserving structure)
 if [ -d "data" ]; then
     mkdir -p _build/data
-    rsync -am --max-size=25m data/ _build/data/
+    find data -type f | while read -r f; do
+        size=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f")
+        if [ "$size" -le 26214400 ]; then
+            dest="_build/${f}"
+            mkdir -p "$(dirname "$dest")"
+            cp "$f" "$dest"
+        fi
+    done
 fi
 
 # 3. Generate index.html from README.md (Better Markdown)
