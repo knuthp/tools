@@ -18,6 +18,7 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [AIS Trips Animation](./ais_trips.html) Animate a day of AIS vessel traffic using Deck.gl and DuckDB-Wasm.
 * [Entur Trips Animation](./entur_trips.html) Animate a day of Entur vehicle monitoring traffic using Deck.gl and DuckDB-Wasm.
 * [Entur ET Ruter+Brakar](./entur_et_interpolate.html) Entur Real-Time map for Ruter and Brakar based on SIRI stop info and interpolation
+* [Norway Real Estate Transactions](./real_estate_map.html) Map and table of real estate transactions in Norway using Deck.gl and OpenFreeMap.
 
 ### DNT cabins, trips, etc
 
