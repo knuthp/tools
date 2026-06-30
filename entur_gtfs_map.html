@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entur GTFS Trips Map</title>
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; height: 100vh; display: flex; flex-direction: column; }
+        #controls { padding: 15px; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        #map { flex: 1; position: relative; }
+        .control-group { display: flex; align-items: center; gap: 8px; }
+        .control-group label { font-weight: bold; font-size: 14px; }
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.9); padding: 20px; border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000; text-align: center;
+        }
+        #tooltip {
+            position: absolute; z-index: 1001; pointer-events: none; background: white;
+            padding: 10px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: none; font-size: 12px;
+        }
+        .mode-item { display: flex; align-items: center; gap: 4px; font-weight: normal !important; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div class="control-group">
+            <label for="day-select">Day:</label>
+            <select id="day-select">
+                <option value="monday">Weekday (Monday)</option>
+                <option value="saturday">Saturday</option>
+                <option value="sunday">Sunday</option>
+            </select>
+        </div>
+        <div class="control-group" id="mode-filters">
+            <label>Modes:</label>
+            <label class="mode-item"><input type="checkbox" value="bus" checked> Bus</label>
+            <label class="mode-item"><input type="checkbox" value="rail" checked> Rail</label>
+            <label class="mode-item"><input type="checkbox" value="subway" checked> Subway</label>
+            <label class="mode-item"><input type="checkbox" value="tram" checked> Tram</label>
+            <label class="mode-item"><input type="checkbox" value="ferry" checked> Ferry</label>
+        </div>
+        <button id="update-btn">Update Map</button>
+        <div id="status">Ready</div>
+    </div>
+    <div id="map">
+        <div id="loading">Initializing DuckDB...</div>
+        <div id="tooltip"></div>
+    </div>
+
+    <script type="module">
+        import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.1/+esm';
+
+        const loadingEl = document.getElementById('loading');
+        const statusEl = document.getElementById('status');
+        const daySelect = document.getElementById('day-select');
+        const modeFilters = document.getElementById('mode-filters');
+        const updateBtn = document.getElementById('update-btn');
+        const tooltip = document.getElementById('tooltip');
+
+        let db, conn;
+
+        async function initDuckDB() {
+            loadingEl.innerText = 'Loading WebAssembly...';
+            const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
+            const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+            const worker_url = URL.createObjectURL(
+                new Blob([`importScripts("${bundle.mainWorker}");`], {type: 'text/javascript'})
+            );
+            const worker = new Worker(worker_url);
+            const logger = new duckdb.ConsoleLogger();
+            db = new duckdb.AsyncDuckDB(logger, worker);
+            await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+            URL.revokeObjectURL(worker_url);
+            conn = await db.connect();
+            await conn.query("INSTALL httpfs; LOAD httpfs;");
+            loadingEl.style.display = 'none';
+        }
+
+        const MODE_MAPPING = {
+            'bus': [3, 200, 201, 202, 700, 701, 702, 704, 705, 710, 711, 712, 714],
+            'rail': [2, 100, 101, 102, 105, 106, 107, 109],
+            'subway': [1, 400, 401, 402, 403, 404, 405],
+            'tram': [0, 900, 901, 902],
+            'ferry': [4, 1000, 1002, 1004, 1008, 1010, 1012, 1013, 1014, 1015, 1102, 1200, 1300]
+        };
+
+        const BASE_URL = 'https://huggingface.co/datasets/knuthp/GTFS_Entur/resolve/main';
+
+        async function fetchData() {
+            const selectedDay = daySelect.value;
+            const checkedModes = Array.from(modeFilters.querySelectorAll('input:checked')).map(cb => cb.value);
+
+            const routeTypes = checkedModes.flatMap(m => MODE_MAPPING[m]);
+            if (routeTypes.length === 0) {
+                alert('Please select at least one mode.');
+                return [];
+            }
+
+            statusEl.innerText = 'Querying data...';
+            loadingEl.innerText = 'Calculating trips (this may take a moment)...';
+            loadingEl.style.display = 'block';
+
+            const query = `
+                WITH active_services AS (
+                    SELECT service_id FROM '${BASE_URL}/calendar.parquet'
+                    WHERE ${selectedDay} = 1
+                ),
+                active_trips AS (
+                    SELECT t.trip_id, t.route_id FROM '${BASE_URL}/trips.parquet' t
+                    JOIN active_services s ON t.service_id = s.service_id
+                    JOIN '${BASE_URL}/routes.parquet' r ON t.route_id = r.route_id
+                    WHERE r.route_type IN (${routeTypes.join(',')})
+                ),
+                stop_counts AS (
+                    SELECT st.stop_id, COUNT(*) as trip_count
+                    FROM '${BASE_URL}/stop_times.parquet' st
+                    JOIN active_trips act_t ON st.trip_id = act_t.trip_id
+                    GROUP BY st.stop_id
+                ),
+                parent_counts AS (
+                    SELECT
+                        COALESCE(s.parent_station, s.stop_id) as parent_id,
+                        SUM(sc.trip_count) as total_trips
+                    FROM stop_counts sc
+                    JOIN '${BASE_URL}/stops.parquet' s ON sc.stop_id = s.stop_id
+                    GROUP BY 1
+                )
+                SELECT
+                    pc.parent_id,
+                    pc.total_trips,
+                    s.stop_name,
+                    s.stop_lat,
+                    s.stop_lon
+                FROM parent_counts pc
+                JOIN '${BASE_URL}/stops.parquet' s ON pc.parent_id = s.stop_id
+            `;
+
+            try {
+                const res = await conn.query(query);
+                const data = res.toArray().map(row => row.toJSON());
+                statusEl.innerText = `Found ${data.length} stations`;
+                return data;
+            } catch (err) {
+                console.error('Query error:', err);
+                statusEl.innerText = `Error querying data: ${err.message}`;
+                return [];
+            } finally {
+                loadingEl.style.display = 'none';
+            }
+        }
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://tiles.openfreemap.org/styles/liberty',
+            center: [10.7522, 59.9139],
+            zoom: 12,
+            pitch: 45
+        });
+
+        const deckOverlay = new deck.MapboxOverlay({
+            interleaved: false,
+            layers: []
+        });
+
+        map.addControl(deckOverlay);
+
+        function updateLayer(data) {
+            const maxTrips = Math.max(...data.map(d => d.total_trips), 1);
+
+            const layer = new deck.ColumnLayer({
+                id: 'trips-column-layer',
+                data: data,
+                getPosition: d => [Number(d.stop_lon), Number(d.stop_lat)],
+                getElevation: d => d.total_trips,
+                elevationScale: 20,
+                radius: 50,
+                getFillColor: d => {
+                    const ratio = d.total_trips / maxTrips;
+                    return [255 * ratio, 255 * (1 - ratio), 255 * (1 - ratio), 200];
+                },
+                pickable: true,
+                onHover: info => {
+                    if (info.object) {
+                        tooltip.innerHTML = `
+                            <strong>${info.object.stop_name}</strong><br>
+                            Total Trips: ${info.object.total_trips}<br>
+                            ID: ${info.object.parent_id}
+                        `;
+                        tooltip.style.display = 'block';
+                        tooltip.style.left = `${info.x + 10}px`;
+                        tooltip.style.top = `${info.y + 10}px`;
+                    } else {
+                        tooltip.style.display = 'none';
+                    }
+                }
+            });
+
+            deckOverlay.setProps({ layers: [layer] });
+        }
+
+        async function main() {
+            await initDuckDB();
+            const data = await fetchData();
+            updateLayer(data);
+
+            updateBtn.onclick = async () => {
+                const data = await fetchData();
+                updateLayer(data);
+            };
+        }
+
+        main();
+    </script>
+</body>
+</html>
