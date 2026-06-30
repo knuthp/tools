@@ -15,6 +15,7 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Oslo Air Traffic](./oslo_planes.html) Live aircraft tracking around Oslo using adsb.lol API.
 * [Entur SIRI-Lite Real-Time Map](./entur_siri_lite.html) Real-time public transport vehicles in Norway using Entur API.
 * [Entur Stops Map](./entur_stops_deckgl.html) Map of transit stops loaded from Parquet using DuckDB-Wasm and Deck.gl.
+* [Entur GTFS Trip Count Map](./entur_gtfs_map.html) Visualize total number of trips at stops using DuckDB-Wasm and Deck.gl.
 * [AIS Trips Animation](./ais_trips.html) Animate a day of AIS vessel traffic using Deck.gl and DuckDB-Wasm.
 * [Entur Trips Animation](./entur_trips.html) Animate a day of Entur vehicle monitoring traffic using Deck.gl and DuckDB-Wasm.
 * [Entur ET Ruter+Brakar](./entur_et_interpolate.html) Entur Real-Time map for Ruter and Brakar based on SIRI stop info and interpolation
