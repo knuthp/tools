@@ -53,8 +53,7 @@
     </div>
 
     <script type="module">
-        import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm';
-
+        import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.1/+esm';
 
         const loadingEl = document.getElementById('loading');
         const statusEl = document.getElementById('status');
@@ -94,6 +93,36 @@
 
         async function fetchData() {
             const selectedDay = daySelect.value;
+
+            statusEl.innerText = 'Checking data range...';
+            // Find a valid date range from the calendar to ensure we show data even if the dataset is stale
+            const rangeRes = await conn.query(`SELECT MIN(start_date) as start, MAX(end_date) as end FROM '${BASE_URL}/calendar.parquet'`);
+            const range = rangeRes.toArray()[0].toJSON();
+            const minDate = range.start;
+            const maxDate = range.end;
+
+            const now = new Date();
+            const getNextDayOfWeek = (dayName) => {
+                const days = { monday: 1, saturday: 6, sunday: 0 };
+                let target = new Date(now);
+                target.setDate(now.getDate() + (days[dayName] + 7 - now.getDay()) % 7);
+
+                let targetInt = parseInt(target.toISOString().split('T')[0].replace(/-/g, ''));
+
+                // If the calculated date is outside the dataset range, clamp it to a valid Monday/Sat/Sun in the range
+                if (targetInt < minDate || targetInt > maxDate) {
+                    console.warn('Calculated date is outside dataset range, clamping to last valid month of data.');
+                    // Just pick a known valid date from my earlier investigation if we are way out
+                    // or better, use the maxDate and find the previous weekday
+                    const lastDate = new Date(maxDate.toString().replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
+                    lastDate.setDate(lastDate.getDate() - (lastDate.getDay() + 7 - days[dayName]) % 7);
+                    targetInt = parseInt(lastDate.toISOString().split('T')[0].replace(/-/g, ''));
+                }
+                return targetInt;
+            };
+
+            const repDateInt = getNextDayOfWeek(selectedDay);
+
             const checkedModes = Array.from(modeFilters.querySelectorAll('input:checked')).map(cb => cb.value);
 
             const routeTypes = checkedModes.flatMap(m => MODE_MAPPING[m]);
@@ -107,9 +136,26 @@
             loadingEl.style.display = 'block';
 
             const query = `
-                WITH active_services AS (
+                WITH calendar_active AS (
                     SELECT service_id FROM '${BASE_URL}/calendar.parquet'
                     WHERE ${selectedDay} = 1
+                      AND start_date <= ${repDateInt}
+                      AND end_date >= ${repDateInt}
+                ),
+                removed_exceptions AS (
+                    SELECT service_id FROM '${BASE_URL}/calendar_dates.parquet'
+                    WHERE date = ${repDateInt} AND exception_type = 2
+                ),
+                added_exceptions AS (
+                    SELECT service_id FROM '${BASE_URL}/calendar_dates.parquet'
+                    WHERE date = ${repDateInt} AND exception_type = 1
+                ),
+                active_services AS (
+                    SELECT service_id FROM (
+                        (SELECT service_id FROM calendar_active EXCEPT SELECT service_id FROM removed_exceptions)
+                        UNION
+                        SELECT service_id FROM added_exceptions
+                    )
                 ),
                 active_trips AS (
                     SELECT t.trip_id, t.route_id FROM '${BASE_URL}/trips.parquet' t
@@ -125,7 +171,7 @@
                 ),
                 parent_counts AS (
                     SELECT
-                        COALESCE(s.parent_station, s.stop_id) as parent_id,
+                        COALESCE(NULLIF(s.parent_station, ''), s.stop_id) as parent_id,
                         SUM(sc.trip_count) as total_trips
                     FROM stop_counts sc
                     JOIN '${BASE_URL}/stops.parquet' s ON sc.stop_id = s.stop_id
@@ -171,18 +217,19 @@
         map.addControl(deckOverlay);
 
         function updateLayer(data) {
-            const maxTrips = Math.max(...data.map(d => d.total_trips), 1);
+            const maxTrips = data.reduce((max, d) => Math.max(max, d.total_trips), 1);
 
             const layer = new deck.ColumnLayer({
                 id: 'trips-column-layer',
                 data: data,
                 getPosition: d => [Number(d.stop_lon), Number(d.stop_lat)],
                 getElevation: d => d.total_trips,
-                elevationScale: 20,
+                elevationScale: 10,
                 radius: 50,
                 getFillColor: d => {
                     const ratio = d.total_trips / maxTrips;
-                    return [255 * ratio, 255 * (1 - ratio), 255 * (1 - ratio), 200];
+                    // Yellow to Red gradient
+                    return [255, 255 * (1 - ratio), 0, 200];
                 },
                 pickable: true,
                 onHover: info => {
