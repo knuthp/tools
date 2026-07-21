@@ -31,6 +31,7 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 
 ### Genealogy
 * [Genealogy Tree Viewer](./genealogy_tree.html) A D3.js powered genealogy tree viewer that shows ancestors (parents above children). Supports multiple JSON data files.
+* [Genealogy Scrollytelling Mystery](./genealogy_scrollytelling.html) An interactive D3.js powered scrollytelling experience. Uncover a grandfather's hidden secrets as you scroll, featuring smooth camera movements, vintage styling, and a complete family dossier.
 
 ### Games
 * [Thro' the Wall](./thro_the_wall.html) ZX Spectrum style breakout clone.
