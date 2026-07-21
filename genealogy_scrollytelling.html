@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Watchmaker's Secret - A Genealogy Scrollytelling Mystery</title>
+    <!-- D3.js v7 library -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Google Fonts for Vintage Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-parchment: #f2ebd9;
+            --bg-parchment-dark: #e4d7be;
+            --color-ink: #2b1f13;
+            --color-ink-faded: #6d543c;
+            --color-accent: #c48b3c;
+            --color-accent-glowing: #ffbf00;
+            --color-crimson: #801d1d;
+            --color-navy: #1d334a;
+            --font-title: 'Cinzel', serif;
+            --font-body: 'EB Garamond', serif;
+            --card-border: #755938;
+            --card-bg: #fdfaf2;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-body);
+            color: var(--color-ink);
+            background-color: var(--bg-parchment);
+            background-image: radial-gradient(var(--bg-parchment-dark) 1px, transparent 0),
+                              radial-gradient(var(--bg-parchment-dark) 1px, transparent 0);
+            background-size: 8px 8px;
+            background-position: 0 0, 4px 4px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            line-height: 1.6;
+            height: 100vh;
+        }
+
+        /* Paper texture overlay */
+        .paper-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.05;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* Fixed container for D3 visualization */
+        #viz-container {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            overflow: hidden;
+            transition: width 0.8s ease-in-out;
+        }
+
+        /* Story Container (Scrolling Column on Left) */
+        #story-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 520px;
+            padding-left: 30px;
+            padding-right: 30px;
+            pointer-events: none; /* Let clicks pass through to D3 unless on a card */
+        }
+
+        /* Scrolling sections (spacer for scrolling) */
+        .story-step {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 15vh;
+            padding-bottom: 25vh;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Narrative Card styling */
+        .narrative-card {
+            background-color: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 4px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(43, 31, 19, 0.15),
+                        inset 0 0 40px rgba(117, 89, 56, 0.05);
+            pointer-events: auto; /* Re-enable pointer events for text and buttons */
+            position: relative;
+            transition: transform 0.4s ease, opacity 0.4s ease, border-color 0.4s ease;
+            opacity: 0.35;
+            transform: scale(0.96);
+        }
+
+        .narrative-card.active {
+            opacity: 1;
+            transform: scale(1);
+            border-color: var(--color-accent);
+            box-shadow: 0 15px 35px rgba(43, 31, 19, 0.25),
+                        inset 0 0 40px rgba(196, 139, 60, 0.08);
+        }
+
+        /* Vintage corner flourishes for cards */
+        .narrative-card::before, .narrative-card::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border: 1px solid var(--card-border);
+            pointer-events: none;
+        }
+        .narrative-card::before {
+            top: 5px;
+            left: 5px;
+            border-right: none;
+            border-bottom: none;
+        }
+        .narrative-card::after {
+            bottom: 5px;
+            right: 5px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .card-meta {
+            font-family: var(--font-title);
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--color-accent);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .narrative-card h2 {
+            font-family: var(--font-title);
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--color-ink);
+            margin-bottom: 15px;
+            line-height: 1.2;
+            border-bottom: 1px double var(--card-border);
+            padding-bottom: 8px;
+        }
+
+        .narrative-card p {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: var(--color-ink);
+            text-align: justify;
+        }
+
+        /* Highlight classes in the text */
+        .text-highlight {
+            font-weight: 600;
+            color: var(--color-crimson);
+            border-bottom: 1px dashed var(--color-crimson);
+        }
+
+        .text-accent {
+            font-weight: 600;
+            color: var(--color-accent);
+        }
+
+        /* SVG styling */
+        .link {
+            fill: none;
+            stroke-width: 2.5px;
+            transition: stroke 0.8s ease, stroke-width 0.8s ease, stroke-dasharray 0.8s ease, opacity 0.8s ease;
+        }
+
+        /* Node elements */
+        .node {
+            cursor: pointer;
+        }
+
+        .node-rect {
+            fill: #fffbf0;
+            stroke-width: 2px;
+            rx: 6;
+            ry: 6;
+            transition: fill 0.5s ease, stroke 0.5s ease, stroke-width 0.5s ease, filter 0.5s ease;
+        }
+
+        .node-name {
+            font-family: var(--font-title);
+            font-size: 13px;
+            font-weight: 800;
+            fill: var(--color-ink);
+            transition: fill 0.5s ease;
+        }
+
+        .node-dates {
+            font-family: var(--font-body);
+            font-size: 11px;
+            fill: var(--color-ink-faded);
+            font-style: italic;
+        }
+
+        .node-role {
+            font-family: var(--font-body);
+            font-size: 10px;
+            fill: var(--color-accent);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Node Highlight Styles */
+        .node.active-focus .node-rect {
+            stroke: var(--color-accent-glowing) !important;
+            stroke-width: 3.5px !important;
+            filter: drop-shadow(0 0 8px rgba(255, 191, 0, 0.6)) !important;
+        }
+
+        .node.active-focus .node-name {
+            fill: var(--color-crimson) !important;
+        }
+
+        .node.faded {
+            opacity: 0.25;
+            transition: opacity 0.8s ease;
+        }
+
+        .node.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+        }
+
+        .link.faded {
+            opacity: 0.15;
+        }
+
+        .link.hidden {
+            opacity: 0;
+        }
+
+        .link.highlight-gold {
+            stroke: var(--color-accent) !important;
+            stroke-width: 4px !important;
+            filter: drop-shadow(0 0 5px rgba(196, 139, 60, 0.5));
+        }
+
+        .link.ghost-line {
+            stroke: var(--color-crimson) !important;
+            stroke-dasharray: 5, 5;
+            stroke-width: 2px !important;
+        }
+
+        /* Dossier Detail Panel (Slides in at final step) */
+        #dossier-panel {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 380px;
+            background-color: var(--card-bg);
+            border: 2px solid var(--card-border);
+            border-radius: 4px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(43,31,19,0.3);
+            z-index: 100;
+            transform: translateY(150%);
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: auto;
+        }
+
+        #dossier-panel.visible {
+            transform: translateY(0);
+        }
+
+        #dossier-panel h3 {
+            font-family: var(--font-title);
+            font-size: 18px;
+            border-bottom: 2px double var(--card-border);
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            color: var(--color-crimson);
+        }
+
+        .dossier-row {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .dossier-label {
+            font-weight: 600;
+            font-family: var(--font-title);
+            font-size: 11px;
+            color: var(--color-ink-faded);
+            letter-spacing: 0.5px;
+            display: inline-block;
+            width: 80px;
+        }
+
+        .dossier-bio {
+            font-size: 15px;
+            margin-top: 12px;
+            border-top: 1px dotted var(--card-border);
+            padding-top: 10px;
+            text-align: justify;
+        }
+
+        .close-dossier {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            cursor: pointer;
+            font-family: var(--font-title);
+            font-size: 14px;
+            color: var(--color-ink-faded);
+            border: none;
+            background: none;
+        }
+        .close-dossier:hover {
+            color: var(--color-crimson);
+        }
+
+        /* Interactive controls overlay */
+        #interactive-controls {
+            position: fixed;
+            top: 25px;
+            right: 25px;
+            z-index: 90;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+        }
+
+        #interactive-controls.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .vintage-btn {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: var(--color-ink);
+            padding: 8px 14px;
+            font-family: var(--font-title);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 2px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+
+        .vintage-btn:hover {
+            background-color: var(--bg-parchment-dark);
+            border-color: var(--color-accent);
+            transform: translateY(-1px);
+        }
+
+        .vintage-select {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: var(--color-ink);
+            padding: 8px;
+            font-family: var(--font-body);
+            font-size: 14px;
+            border-radius: 2px;
+            outline: none;
+        }
+
+        /* Subtle scroll indicator */
+        #scroll-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+            font-family: var(--font-title);
+            font-size: 11px;
+            letter-spacing: 3px;
+            color: var(--color-ink-faded);
+            animation: bounce 2s infinite;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+            opacity: 0.8;
+            transition: opacity 0.5s ease;
+        }
+
+        #scroll-indicator.hidden {
+            opacity: 0;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translate(-50%, 0); }
+            40% { transform: translate(-50%, -10px); }
+            60% { transform: translate(-50%, -5px); }
+        }
+
+        /* Drop shadow filter for D3 nodes */
+        .node-shadow {
+            filter: drop-shadow(0px 3px 5px rgba(43, 31, 19, 0.15));
+        }
+
+        /* Responsive adaptations */
+        @media (max-width: 850px) {
+            #story-container {
+                max-width: 100%;
+                padding: 15px;
+            }
+            .story-step {
+                justify-content: center;
+                padding-bottom: 40vh;
+            }
+            .narrative-card {
+                width: 100%;
+                max-width: 460px;
+            }
+            #dossier-panel {
+                width: calc(100% - 50px);
+                left: 25px;
+                right: 25px;
+            }
+            #viz-container {
+                opacity: 0.7; /* enhance text contrast on small screens */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="paper-overlay"></div>
+
+    <!-- Background D3 SVG visualization -->
+    <div id="viz-container">
+        <svg id="tree-svg" style="width: 100%; height: 100%;"></svg>
+    </div>
+
+    <!-- Scrolling Narrative -->
+    <div id="story-container">
+        <!-- Step 1 -->
+        <div class="story-step" id="step-1">
+            <div class="narrative-card active" data-step="1">
+                <div class="card-meta">Chapter I</div>
+                <h2>The Silver Locket</h2>
+                <p>For twenty-eight years, <span class="text-highlight">Clara Vance</span> believed her family tree was simple and unremarkable. But while cleaning out her late grandmother's attic, she found a tarnished silver locket with an intricate crest.</p>
+                <p>Inside was a faded, tiny photograph of a little boy and a handwritten scrap of paper that read: <span class="text-accent">"J., Bavaria, 1947"</span>. No one in her family had ever mentioned any ties to Germany.</p>
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="story-step" id="step-2">
+            <div class="narrative-card" data-step="2">
+                <div class="card-meta">Chapter II</div>
+                <h2>The Silent Father & Elegant Mother</h2>
+                <p>Clara began tracing her parents, <span class="text-accent">Arthur Vance</span> and <span class="text-accent">Eleanor Blackwood</span>. Her father's merchant line in Boston was transparent and completely documented. </p>
+                <p>However, her mother Eleanor was strangely evasive about her own side. She spoke of her father, <span class="text-highlight">Julian Blackwood</span>, as a quiet, solitary watchmaker who arrived in Portland, Maine, shortly after the war and never spoke of his youth.</p>
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="story-step" id="step-3">
+            <div class="narrative-card" data-step="3">
+                <div class="card-meta">Chapter III</div>
+                <h2>The Ghostly Ancestors</h2>
+                <p>Determined to find answers, Clara pulled Julian's public certificates. His parents were listed as <span class="text-highlight">Thomas and Sarah Blackwood</span> from Portland. </p>
+                <p>But when Clara cross-referenced census entries, tax books, and parish registers, she found absolutely nothing. They were <span class="text-highlight">ghosts</span>—their records started and stopped precisely with Julian's birth certificate forgery. Someone had fabricated this entire branch.</p>
+            </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="story-step" id="step-4">
+            <div class="narrative-card" data-step="4">
+                <div class="card-meta">Chapter IV</div>
+                <h2>The Bavarian blueprints</h2>
+                <p>Beneath the false wood paneling of Julian's workbench, Clara uncovered a leather folder. Inside were elegant German letters written in 1947, addressed to <span class="text-accent">Julius von Brandis</span> of Munich.</p>
+                <p>Julian Blackwood was an alias! His true parents were <span class="text-highlight">Alistair and Charlotte von Brandis</span>, prominent Bavarian aristocrats who had been active in the underground resistance. Fleeing post-war chaos and political retaliation, they purchased forged identities to secure their young son's future in the New World.</p>
+            </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="story-step" id="step-5">
+            <div class="narrative-card" data-step="5">
+                <div class="card-meta">Chapter V</div>
+                <h2>Restoring the Heritage</h2>
+                <p>Her grandfather's meticulous precision wasn't just a trait; it was the discipline of a trained engineer, hiding in plain sight as a Maine watchmaker. The crest on the locket belonged to the house of <span class="text-accent">Brandis</span>.</p>
+                <p>By discovering the truth, Clara connected the frayed threads of her ancestry. The ghosts vanished, and the brave Bavarian noble lineage was finally returned to the family history.</p>
+            </div>
+        </div>
+
+        <!-- Step 6 -->
+        <div class="story-step" id="step-6">
+            <div class="narrative-card" data-step="6">
+                <div class="card-meta">Epilogue</div>
+                <h2>Explore the Legacy</h2>
+                <p>The mystery has been unraveled, and the silent watchmaker's secret is revealed. Now, the family tree is yours to explore.</p>
+                <p>Hover over or click on any ancestor to open their <span class="text-accent">family dossier</span>, search individuals from the dropdown, and navigate freely through the generations.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scroll Indicator -->
+    <div id="scroll-indicator">
+        <span>SCROLL TO UNCOVER</span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+    </div>
+
+    <!-- Dossier Detailed Panel -->
+    <div id="dossier-panel">
+        <button class="close-dossier" onclick="hideDossier()">✕</button>
+        <h3 id="dossier-name">Clara Vance</h3>
+        <div class="dossier-row"><span class="dossier-label">Title/Role:</span> <span id="dossier-role">The Seeker</span></div>
+        <div class="dossier-row"><span class="dossier-label">Lifespan:</span> <span id="dossier-dates">1995 - Present</span></div>
+        <div class="dossier-row"><span class="dossier-label">Origin:</span> <span id="dossier-place">Chicago, IL</span></div>
+        <div class="dossier-bio" id="dossier-bio">An archivist with an eye for detail, Clara stumbled upon a silver locket in her grandmother's attic, setting off a journey into a past her family had spent decades concealing.</div>
+    </div>
+
+    <!-- Interactive Top Controls -->
+    <div id="interactive-controls">
+        <select id="ancestor-select" class="vintage-select">
+            <option value="">-- Choose Ancestor --</option>
+        </select>
+        <button class="vintage-btn" onclick="resetZoom()">Reset View</button>
+    </div>
+
+    <script>
+        // --- 1. GENEALOGY DATASETS ---
+        // Complete family tree hierarchy starting with Clara at the root.
+        // We will restructure this data to work nicely with d3.hierarchy
+        const familyData = {
+            id: "clara",
+            name: "Clara Vance",
+            role: "The Seeker",
+            born: "1995",
+            death: "Present",
+            birthplace: "Chicago, IL",
+            bio: "An archivist with an eye for detail, Clara stumbled upon a silver locket in her grandmother's attic, setting off a journey into a past her family had spent decades concealing.",
+            father: {
+                id: "arthur",
+                name: "Arthur Vance",
+                role: "The Honest Merchant",
+                born: "1968",
+                death: "Present",
+                birthplace: "Chicago, IL",
+                bio: "A humble and hardworking man, Arthur ran a small hardware store in Chicago. He is proud of his family's straightforward merchant history in Boston.",
+                father: {
+                    id: "robert",
+                    name: "Robert Vance",
+                    role: "Shipyard Artisan",
+                    born: "1938",
+                    death: "2015",
+                    birthplace: "Boston, MA",
+                    bio: "Worked in the Boston shipyards. A man of few words who lived a quiet, peaceful life, raising Arthur with a strong work ethic.",
+                    father: null,
+                    mother: null
+                },
+                mother: {
+                    id: "evelyn",
+                    name: "Evelyn Vance",
+                    role: "The Librarian",
+                    born: "1941",
+                    death: "2020",
+                    birthplace: "Boston, MA",
+                    bio: "A passionate reader and community librarian. It was in her attic that Clara discovered the mysterious silver locket.",
+                    father: null,
+                    mother: null
+                }
+            },
+            mother: {
+                id: "eleanor",
+                name: "Eleanor Blackwood",
+                role: "The Protective Mother",
+                born: "1970",
+                death: "Present",
+                birthplace: "Boston, MA",
+                bio: "Eleanor was always protective of her father Julian's memory, but knew very little of his life before Portland. She always sensed a heavy silence in their household.",
+                father: {
+                    id: "julian",
+                    name: "Julian Blackwood", // Julian Blackwood (Secretly Julius von Brandis)
+                    role: "The Watchmaker",
+                    born: "1935",
+                    death: "2012",
+                    birthplace: "Munich, Germany",
+                    bio: "Known as a quiet, meticulous watchmaker in Portland, Maine. Clara's grandfather kept his true identity as Julius von Brandis a closely guarded secret to protect his descendants.",
+                    // Real parents
+                    father: {
+                        id: "alistair",
+                        name: "Alistair von Brandis",
+                        role: "Bavarian Nobleman",
+                        born: "1898",
+                        death: "1962",
+                        birthplace: "Munich, Germany",
+                        bio: "An intellectual and nobleman who actively opposed the rise of authoritarian regimes in 1930s Germany. He was forced to hide his family and eventually fled Munich in 1947.",
+                        father: null,
+                        mother: null
+                    },
+                    mother: {
+                        id: "charlotte",
+                        name: "Charlotte von Brandis",
+                        role: "Concert Pianist",
+                        born: "1905",
+                        death: "1988",
+                        birthplace: "Vienna, Austria",
+                        bio: "An elegant Austrian pianist. She abandoned her career and wealth to escape with Alistair and their son Julius to the United States under false papers.",
+                        father: null,
+                        mother: null
+                    },
+                    // Fictitious parents for Step 3
+                    fictitiousFather: {
+                        id: "thomas_fict",
+                        name: "Thomas Blackwood",
+                        role: "Paper Phantom",
+                        born: "Unknown",
+                        death: "Unknown",
+                        birthplace: "Unknown",
+                        bio: "Listed as Julian's father on a forged birth certificate. Extensive archival searches reveal absolutely no census, tax, or death records for this individual."
+                    },
+                    fictitiousMother: {
+                        id: "sarah_fict",
+                        name: "Sarah Blackwood",
+                        role: "Paper Phantom",
+                        born: "Unknown",
+                        death: "Unknown",
+                        birthplace: "Unknown",
+                        bio: "Listed as Julian's mother on a forged birth certificate. Like her husband, she exists only on paper, a phantom created to cover a boy's tracks."
+                    }
+                },
+                mother: {
+                    id: "beatrice",
+                    name: "Beatrice Thorne",
+                    role: "The Scholar",
+                    born: "1939",
+                    death: "Present",
+                    birthplace: "Portland, ME",
+                    bio: "A retired history teacher. She met Julian in Portland in 1960. Though she knew he harbored painful memories of Europe, she respected his privacy and loved him dearly.",
+                    father: null,
+                    mother: null
+                }
+            }
+        };
+
+        // Flat array of people for easy selection and searching
+        const peopleList = [];
+        function gatherPeople(node) {
+            if (!node) return;
+            peopleList.push(node);
+            if (node.father) gatherPeople(node.father);
+            if (node.mother) gatherPeople(node.mother);
+            if (node.fictitiousFather) gatherPeople(node.fictitiousFather);
+            if (node.fictitiousMother) gatherPeople(node.fictitiousMother);
+        }
+        gatherPeople(familyData);
+
+        // --- 2. LAYOUT & DIMENSIONS ---
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
+        const svg = d3.select("#tree-svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        // Add filter for beautiful vintage drop shadow
+        const defs = svg.append("defs");
+        const filter = defs.append("filter")
+            .attr("id", "vintage-shadow")
+            .attr("x", "-15%")
+            .attr("y", "-15%")
+            .attr("width", "130%")
+            .attr("height", "130%");
+
+        filter.append("feDropShadow")
+            .attr("dx", "2")
+            .attr("dy", "4")
+            .attr("stdDeviation", "4")
+            .attr("flood-color", "#382a1c")
+            .attr("flood-opacity", "0.25");
+
+        const mainGroup = svg.append("g").attr("class", "main-group");
+
+        // Set up zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.3, 3])
+            .on("zoom", (event) => {
+                mainGroup.attr("transform", event.transform);
+            });
+
+        svg.call(zoom);
+
+        // Define card node sizes
+        const nodeWidth = 170;
+        const nodeHeight = 65;
+        const levelSpacing = 130;
+
+        // --- 3. D3 TREE PROCESSING ---
+        // Normalizes our custom dual-parent hierarchy into a D3-compliant parent-child layout.
+        // We will support switching the grandfather's parents between real (Brandis) and fictitious (Blackwood).
+        function buildD3Hierarchy(person, showRealBavarian = true) {
+            const children = [];
+
+            if (person.father || person.mother) {
+                // If this is Julian, we can decide to show the true Bavarian parents or fictitious ghosts
+                if (person.id === "julian") {
+                    if (showRealBavarian) {
+                        if (person.father) children.push(buildD3Hierarchy(person.father, showRealBavarian));
+                        if (person.mother) children.push(buildD3Hierarchy(person.mother, showRealBavarian));
+                    } else {
+                        if (person.fictitiousFather) children.push(buildD3Hierarchy(person.fictitiousFather, showRealBavarian));
+                        if (person.fictitiousMother) children.push(buildD3Hierarchy(person.fictitiousMother, showRealBavarian));
+                    }
+                } else {
+                    if (person.father) children.push(buildD3Hierarchy(person.father, showRealBavarian));
+                    if (person.mother) children.push(buildD3Hierarchy(person.mother, showRealBavarian));
+                }
+            }
+
+            return {
+                id: person.id,
+                name: person.name,
+                role: person.role,
+                born: person.born,
+                death: person.death,
+                birthplace: person.birthplace,
+                bio: person.bio,
+                children: children.length > 0 ? children : null
+            };
+        }
+
+        // Generate complete lists for both states (Real and Ghost)
+        let rootReal = d3.hierarchy(buildD3Hierarchy(familyData, true));
+        let rootGhost = d3.hierarchy(buildD3Hierarchy(familyData, false));
+
+        const treeLayout = d3.tree().nodeSize([nodeWidth + 40, levelSpacing]);
+
+        // Layout tree structures
+        treeLayout(rootReal);
+        treeLayout(rootGhost);
+
+        // Adjust coordinates so children are on the bottom, parents on the top (invert Y)
+        function invertAndOffsetTree(root) {
+            const nodes = root.descendants();
+            const maxDepth = d3.max(nodes, d => d.depth);
+            nodes.forEach(d => {
+                d.y = (maxDepth - d.depth) * levelSpacing + 100;
+            });
+        }
+
+        invertAndOffsetTree(rootReal);
+        invertAndOffsetTree(rootGhost);
+
+        // Global reference of active data nodes and links
+        let currentNodes = [];
+        let currentLinks = [];
+        let activeStep = 1;
+
+        // Render nodes and links
+        function drawTree(rootData) {
+            currentNodes = rootData.descendants();
+            currentLinks = rootData.links();
+
+            // Link rendering
+            const linksSelection = mainGroup.selectAll(".link")
+                .data(currentLinks, d => `${d.source.data.id}-${d.target.data.id}`);
+
+            // Remove retired links
+            linksSelection.exit().remove();
+
+            // Enter new links
+            linksSelection.enter()
+                .append("path")
+                .attr("class", "link")
+                .attr("d", d3.linkVertical()
+                    .x(d => d.x)
+                    .y(d => d.y))
+                .style("stroke", "#7a5c3e")
+                .style("opacity", 0);
+
+            // Node group rendering
+            const nodesSelection = mainGroup.selectAll(".node")
+                .data(currentNodes, d => d.data.id);
+
+            // Remove retired nodes
+            nodesSelection.exit().remove();
+
+            // Enter new nodes
+            const enterNodes = nodesSelection.enter()
+                .append("g")
+                .attr("class", "node node-shadow")
+                .attr("transform", d => `translate(${d.x},${d.y})`)
+                .on("click", (event, d) => {
+                    event.stopPropagation();
+                    // Dossier view only active once user has interacted or is in step 6
+                    if (activeStep === 6) {
+                        showDossier(d.data);
+                        highlightSelectedNode(d.data.id);
+                    }
+                });
+
+            // Card background rect
+            enterNodes.append("rect")
+                .attr("class", "node-rect")
+                .attr("x", -nodeWidth / 2)
+                .attr("y", -nodeHeight / 2)
+                .attr("width", nodeWidth)
+                .attr("height", nodeHeight)
+                .attr("stroke", "#8c6c47")
+                .attr("fill", "#fffef7");
+
+            // Decorative inner border
+            enterNodes.append("rect")
+                .attr("x", -nodeWidth / 2 + 4)
+                .attr("y", -nodeHeight / 2 + 4)
+                .attr("width", nodeWidth - 8)
+                .attr("height", nodeHeight - 8)
+                .attr("fill", "none")
+                .attr("stroke", "#e8dfcd")
+                .attr("stroke-width", "1");
+
+            // Name text
+            enterNodes.append("text")
+                .attr("class", "node-name")
+                .attr("text-anchor", "middle")
+                .attr("dy", -10)
+                .text(d => d.data.name);
+
+            // Lifespan text
+            enterNodes.append("text")
+                .attr("class", "node-dates")
+                .attr("text-anchor", "middle")
+                .attr("dy", 8)
+                .text(d => `${d.data.born} – ${d.data.death}`);
+
+            // Role tag
+            enterNodes.append("text")
+                .attr("class", "node-role")
+                .attr("text-anchor", "middle")
+                .attr("dy", 23)
+                .text(d => d.data.role);
+
+            // Apply step visibility settings immediately
+            applyStepFormatting();
+        }
+
+        // --- 4. STEP-BY-STEP STORIES & VISUAL TRANSITIONS ---
+        // Coordinates and scale transitions tailored for desktop vs mobile layout
+        function getFocusPosition(targetX, targetY) {
+            const isDesktop = window.innerWidth > 850;
+
+            // On desktop, shift the visualization center to the right 60% of screen to avoid overlapping the left narrative cards
+            const offsetMultiplierX = isDesktop ? 0.3 : 0;
+            const targetXOffset = width * offsetMultiplierX;
+
+            // Calculate scale based on device width
+            const targetScale = isDesktop ? 0.95 : 0.7;
+
+            const transX = (width / 2) - (targetX * targetScale) + targetXOffset;
+            const transY = (height / 2) - (targetY * targetScale);
+
+            return d3.zoomIdentity.translate(transX, transY).scale(targetScale);
+        }
+
+        function applyStepFormatting() {
+            const allNodes = mainGroup.selectAll(".node");
+            const allLinks = mainGroup.selectAll(".link");
+
+            // Standard opacity reset
+            allNodes.classed("hidden", false).classed("faded", false).classed("active-focus", false);
+            allLinks.classed("hidden", false).classed("faded", false).classed("highlight-gold", false).classed("ghost-line", false);
+
+            if (activeStep === 1) {
+                // Intro: Only Clara is visible, rest hidden
+                allNodes.each(function(d) {
+                    if (d.data.id !== "clara") d3.select(this).classed("hidden", true);
+                });
+                allLinks.classed("hidden", true);
+
+                // Highlight Clara
+                const claraNode = allNodes.filter(d => d.data.id === "clara");
+                claraNode.classed("active-focus", true);
+
+                // Camera focal point: Clara
+                const targetNode = currentNodes.find(d => d.data.id === "clara");
+                if (targetNode) {
+                    svg.transition().duration(1200).ease(d3.easeCubicInOut)
+                        .call(zoom.transform, getFocusPosition(targetNode.x, targetNode.y));
+                }
+            }
+            else if (activeStep === 2) {
+                // Parents fade in. Arthur's side faded, Mother's side highlighted
+                allNodes.each(function(d) {
+                    const id = d.data.id;
+                    if (id !== "clara" && id !== "arthur" && id !== "eleanor") {
+                        d3.select(this).classed("hidden", true);
+                    } else if (id === "arthur") {
+                        d3.select(this).classed("faded", true);
+                    }
+                });
+
+                allLinks.each(function(d) {
+                    const sourceId = d.source.data.id;
+                    const targetId = d.target.data.id;
+                    if (targetId === "clara" && (sourceId === "arthur" || sourceId === "eleanor")) {
+                        if (sourceId === "arthur") {
+                            d3.select(this).classed("faded", true);
+                        }
+                    } else {
+                        d3.select(this).classed("hidden", true);
+                    }
+                });
+
+                // Highlight Eleanor
+                const eleanorNode = allNodes.filter(d => d.data.id === "eleanor");
+                eleanorNode.classed("active-focus", true);
+
+                // Target: Focus on Eleanor and her relation to Clara
+                const eleanorData = currentNodes.find(d => d.data.id === "eleanor");
+                if (eleanorData) {
+                    svg.transition().duration(1200).ease(d3.easeCubicInOut)
+                        .call(zoom.transform, getFocusPosition(eleanorData.x - 50, eleanorData.y + 50));
+                }
+            }
+            else if (activeStep === 3) {
+                // Watchmaker & Fictitious dead ends
+                allNodes.each(function(d) {
+                    const id = d.data.id;
+                    // Fictitious path is currently active, so Alistair and Charlotte are not in this dataset
+                    if (id === "arthur" || id === "robert" || id === "evelyn") {
+                        d3.select(this).classed("faded", true);
+                    }
+                });
+
+                allLinks.each(function(d) {
+                    const targetId = d.target.data.id;
+                    const sourceId = d.source.data.id;
+                    if (targetId === "clara" && sourceId === "arthur") {
+                        d3.select(this).classed("faded", true);
+                    } else if (targetId === "arthur" && (sourceId === "robert" || sourceId === "evelyn")) {
+                        d3.select(this).classed("faded", true);
+                    } else if (targetId === "julian" && (sourceId === "thomas_fict" || sourceId === "sarah_fict")) {
+                        d3.select(this).classed("ghost-line", true);
+                    }
+                });
+
+                // Highlight Julian and his fictitious parents
+                allNodes.filter(d => d.data.id === "julian").classed("active-focus", true);
+                allNodes.filter(d => d.data.id === "thomas_fict" || d.data.id === "sarah_fict").classed("active-focus", true);
+
+                const julianData = currentNodes.find(d => d.data.id === "julian");
+                if (julianData) {
+                    svg.transition().duration(1200).ease(d3.easeCubicInOut)
+                        .call(zoom.transform, getFocusPosition(julianData.x, julianData.y - 40));
+                }
+            }
+            else if (activeStep === 4) {
+                // Prussian Noble lineage revealed
+                allNodes.each(function(d) {
+                    const id = d.data.id;
+                    if (id === "arthur" || id === "robert" || id === "evelyn" || id === "beatrice") {
+                        d3.select(this).classed("faded", true);
+                    }
+                });
+
+                allLinks.each(function(d) {
+                    const targetId = d.target.data.id;
+                    const sourceId = d.source.data.id;
+                    if (targetId === "clara" && sourceId === "arthur") {
+                        d3.select(this).classed("faded", true);
+                    } else if (targetId === "arthur" && (sourceId === "robert" || sourceId === "evelyn")) {
+                        d3.select(this).classed("faded", true);
+                    } else if (targetId === "eleanor" && sourceId === "beatrice") {
+                        d3.select(this).classed("faded", true);
+                    } else if (targetId === "julian" && (sourceId === "alistair" || sourceId === "charlotte")) {
+                        d3.select(this).classed("highlight-gold", true);
+                    }
+                });
+
+                allNodes.filter(d => d.data.id === "alistair" || d.data.id === "charlotte").classed("active-focus", true);
+
+                const alistairData = currentNodes.find(d => d.data.id === "alistair");
+                if (alistairData) {
+                    svg.transition().duration(1200).ease(d3.easeCubicInOut)
+                        .call(zoom.transform, getFocusPosition(alistairData.x + 80, alistairData.y + 40));
+                }
+            }
+            else if (activeStep === 5) {
+                // Heritage fully integrated and connected
+                allLinks.each(function(d) {
+                    const path = [d.source.data.id, d.target.data.id];
+                    // Highlight the true noble line down to Clara
+                    if (
+                        (path[0] === "alistair" && path[1] === "julian") ||
+                        (path[0] === "charlotte" && path[1] === "julian") ||
+                        (path[0] === "julian" && path[1] === "eleanor") ||
+                        (path[0] === "eleanor" && path[1] === "clara")
+                    ) {
+                        d3.select(this).classed("highlight-gold", true);
+                    }
+                });
+
+                allNodes.filter(d => d.data.id === "clara" || d.data.id === "eleanor" || d.data.id === "julian").classed("active-focus", true);
+
+                // Zoom out to center everything nicely
+                const claraData = currentNodes.find(d => d.data.id === "clara");
+                if (claraData) {
+                    svg.transition().duration(1500).ease(d3.easeCubicInOut)
+                        .call(zoom.transform, getFocusPosition(0, levelSpacing * 1.5));
+                }
+            }
+            else if (activeStep === 6) {
+                // Interactive Mode unlocked!
+                // Standard visual state
+                allNodes.classed("faded", false).classed("active-focus", false);
+                allLinks.classed("faded", false);
+
+                const claraData = currentNodes.find(d => d.data.id === "clara");
+                if (claraData) {
+                    svg.transition().duration(1500).ease(d3.easeCubicInOut)
+                        .call(zoom.transform, getFocusPosition(0, levelSpacing * 1.5));
+                }
+            }
+        }
+
+        // --- 5. INTERACTION & NAVIGATION CONTROLS ---
+        function changeStep(stepNum) {
+            if (activeStep === stepNum) return;
+            activeStep = stepNum;
+
+            // Step 3 uses the ghost tree; Steps 4, 5, 6 use the real noble Bavarian tree
+            if (activeStep <= 3) {
+                drawTree(rootGhost);
+            } else {
+                drawTree(rootReal);
+            }
+
+            // Show or hide interactive control modules
+            const controls = document.getElementById("interactive-controls");
+            const indicator = document.getElementById("scroll-indicator");
+            if (activeStep === 6) {
+                controls.classList.add("visible");
+                indicator.classList.add("hidden");
+                // Open Clara's dossier by default in final step
+                const clara = peopleList.find(p => p.id === "clara");
+                showDossier(clara);
+                highlightSelectedNode("clara");
+            } else {
+                controls.classList.remove("visible");
+                indicator.classList.remove("hidden");
+                hideDossier();
+            }
+        }
+
+        // --- 6. DOSSIER DETAILS PANEL ---
+        function showDossier(person) {
+            document.getElementById("dossier-name").innerText = person.name;
+            document.getElementById("dossier-role").innerText = person.role;
+            document.getElementById("dossier-dates").innerText = `${person.born} – ${person.death}`;
+            document.getElementById("dossier-place").innerText = person.birthplace;
+            document.getElementById("dossier-bio").innerText = person.bio;
+            document.getElementById("dossier-panel").classList.add("visible");
+        }
+
+        function hideDossier() {
+            document.getElementById("dossier-panel").classList.remove("visible");
+            // clear selected highlights
+            mainGroup.selectAll(".node").classed("active-focus", false);
+        }
+
+        function highlightSelectedNode(nodeId) {
+            mainGroup.selectAll(".node").classed("active-focus", false);
+            mainGroup.selectAll(".node")
+                .filter(d => d.data.id === nodeId)
+                .classed("active-focus", true);
+        }
+
+        window.resetZoom = function() {
+            const targetX = 0;
+            const targetY = levelSpacing * 1.5;
+            svg.transition().duration(1000).ease(d3.easeCubicInOut)
+                .call(zoom.transform, getFocusPosition(targetX, targetY));
+        };
+
+        // Populate search dropdown
+        const selectElement = document.getElementById("ancestor-select");
+        peopleList.forEach(person => {
+            const option = document.createElement("option");
+            option.value = person.id;
+            option.text = person.name;
+            selectElement.appendChild(option);
+        });
+
+        selectElement.addEventListener("change", (e) => {
+            const selectedId = e.target.value;
+            if (!selectedId) return;
+
+            // Find node coordinate in current visible tree
+            const targetNode = currentNodes.find(d => d.data.id === selectedId);
+            if (targetNode) {
+                svg.transition().duration(1200).ease(d3.easeCubicInOut)
+                    .call(zoom.transform, getFocusPosition(targetNode.x, targetNode.y));
+                showDossier(targetNode.data);
+                highlightSelectedNode(selectedId);
+            }
+        });
+
+        // --- 7. SCROLL OBSERVER ---
+        const observerOptions = {
+            root: null, // viewport
+            rootMargin: "-40% 0px -40% 0px", // Trigger when card enters center band of screen
+            threshold: 0
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const card = entry.target.querySelector(".narrative-card");
+                    if (card) {
+                        // Deactivate all cards, activate current
+                        document.querySelectorAll(".narrative-card").forEach(c => c.classList.remove("active"));
+                        card.classList.add("active");
+
+                        const stepNum = parseInt(card.getAttribute("data-step"));
+                        changeStep(stepNum);
+                    }
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll(".story-step").forEach(step => {
+            observer.observe(step);
+        });
+
+        // --- 8. INITIALIZE ---
+        // First draw
+        drawTree(rootGhost);
+        changeStep(1);
+
+        // Window resize handler
+        window.addEventListener("resize", () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            svg.attr("width", width).attr("height", height);
+            // Re-apply focal position of current step
+            applyStepFormatting();
+        });
+    </script>
+</body>
+</html>
