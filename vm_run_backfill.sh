@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # ---- CONFIG: starting point ----
-START_YEAR=2024
-START_WEEK=27
+START_YEAR=2026
+START_WEEK=14
 
 # ---- Determine last full ISO week ----
 # ISO year (%G) and ISO week (%V)
