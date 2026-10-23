@@ -45,6 +45,7 @@ Inspired by Simon Willison <https://github.com/simonw/tools>
 * [Entur GTFS to GeoParquet](./python/entur_gtfs_to_geoparquet.py) Python script to download Entur GTFS and convert to (Geo)Parquet. Run with `uv run python/entur_gtfs_to_geoparquet.py`.
 * [AIS to single day feather](./python/fetch_ais_to_arrow.py) Python script to download hugging face AIS data for one day and save as arrow (feather).  Run with `uv run python/fetch_ais_to_arrow.py`
 * [Estimate Vehicle Positions (DuckDB)](./python/estimate_vehicle_positions_duckdb.py) Python script to estimate real-time vehicle positions from SIRI ET data using DuckDB for interpolation. Run with `uv run python/estimate_vehicle_positions_duckdb.py`.
+* [NVDB to DuckDB Ingestion](./python/nvdb_to_duckdb.py) Python script to fetch road objects from Statens vegvesen NVDB API Les v3 into a local DuckDB database with spatial support. Run with `uv run python/nvdb_to_duckdb.py --type-id 105`.
 
 #### Entur pipelines
 * [Entur fetch Estimated Timetable into duckdb](./python/fetch_et_to_duckdb.py) Fetch real time Estimated Timetable data from Entur and store in duckdb table (both EstimatedCalls and RecordedCalls) `uv run python/fetch_et_to_duckdb.py --dataset-id=RUT`
